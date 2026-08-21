@@ -1,0 +1,78 @@
+{
+    "version": "2.0",
+    "unlocked_animals": [
+        "tatu_bola",
+        "arara_azul"
+    ],
+    "unlocked_biomes": [
+        "caatinga"
+    ],
+    "permanent_upgrades": [],
+    "animal_data": {
+        "tatu_bola": {
+            "level": 3,
+            "xp": 4,
+            "xp_to_level": 112,
+            "base_attack": 14,
+            "base_defense": 17,
+            "base_speed": 7,
+            "base_crit_chance": 5,
+            "base_dodge": 5,
+            "max_hp": 86,
+            "regen_per_turn": 2,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        },
+        "arara_azul": {
+            "level": 3,
+            "xp": 42,
+            "xp_to_level": 112,
+            "base_attack": 15,
+            "base_defense": 5,
+            "base_speed": 12,
+            "base_crit_chance": 10,
+            "base_dodge": 12,
+            "max_hp": 52,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        }
+    },
+    "inventory": [
+        "ervas_medicinais"
+    ],
+    "active_party": [
+        "tatu_bola",
+        "tatu_bola",
+        "arara_azul"
+    ],
+    "bestiary_discovered": [
+        "tatu_bola"
+    ],
+    "creatures_discovered": [
+        "brasa",
+        "chamas"
+    ],
+    "statistics": {
+        "combats_won": 4,
+        "combats_lost": 1,
+        "enemies_defeated": 6,
+        "gold_earned": 51,
+        "levels_gained": 0,
+        "animals_rescued": 0,
+        "bosses_defeated": 0
+    },
+    "settings": {
+        "music_volume": 0.7,
+        "sfx_volume": 0.8,
+        "fullscreen": false
+    },
+    "play_time": 353.3382921218872,
+    "last_save_time": 1787341228.0281656
+}

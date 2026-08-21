@@ -1,0 +1,164 @@
+{
+    "version": "2.0",
+    "unlocked_animals": [
+        "tatu_bola",
+        "arara_azul",
+        "lobo_guara",
+        "onca_pintada",
+        "capivara",
+        "tamandua_bandeira"
+    ],
+    "unlocked_biomes": [
+        "caatinga",
+        "cerrado",
+        "pantanal"
+    ],
+    "permanent_upgrades": [],
+    "animal_data": {
+        "tatu_bola": {
+            "level": 8,
+            "xp": 79,
+            "xp_to_level": 850,
+            "base_attack": 14,
+            "base_defense": 55,
+            "base_speed": 11,
+            "base_crit_chance": 15,
+            "base_dodge": 21,
+            "max_hp": 111,
+            "regen_per_turn": 0,
+            "damage_reduction": 2,
+            "execute_bonus": 0,
+            "crit_damage_boost": 50,
+            "cooldown_reduction": 0,
+            "equipped_item": "casco_reforcado"
+        },
+        "arara_azul": {
+            "level": 4,
+            "xp": 148,
+            "xp_to_level": 168,
+            "base_attack": 15,
+            "base_defense": 7,
+            "base_speed": 16,
+            "base_crit_chance": 10,
+            "base_dodge": 12,
+            "max_hp": 67,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 50,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        },
+        "lobo_guara": {
+            "level": 2,
+            "xp": 1,
+            "xp_to_level": 75,
+            "base_attack": 16,
+            "base_defense": 6,
+            "base_speed": 14,
+            "base_crit_chance": 20,
+            "base_dodge": 15,
+            "max_hp": 57,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 50,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        },
+        "onca_pintada": {
+            "level": 3,
+            "xp": 36,
+            "xp_to_level": 112,
+            "base_attack": 23,
+            "base_defense": 7,
+            "base_speed": 13,
+            "base_crit_chance": 17,
+            "base_dodge": 10,
+            "max_hp": 62,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 3,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        },
+        "capivara": {
+            "level": 3,
+            "xp": 31,
+            "xp_to_level": 112,
+            "base_attack": 9,
+            "base_defense": 10,
+            "base_speed": 8,
+            "base_crit_chance": 5,
+            "base_dodge": 8,
+            "max_hp": 78,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        },
+        "tamandua_bandeira": {
+            "level": 3,
+            "xp": 67,
+            "xp_to_level": 112,
+            "base_attack": 15,
+            "base_defense": 12,
+            "base_speed": 9,
+            "base_crit_chance": 8,
+            "base_dodge": 10,
+            "max_hp": 67,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        }
+    },
+    "inventory": [
+        "olho_de_aguia",
+        "osso_resistente",
+        "pena_sagrada",
+        "instinto_selvagem",
+        "medalha_do_sertao",
+        "cantil_natural",
+        "pegadas_rapidas",
+        "garra_afiada"
+    ],
+    "active_party": [
+        "onca_pintada",
+        "tatu_bola",
+        "tatu_bola"
+    ],
+    "bestiary_discovered": [
+        "tatu_bola",
+        "arara_azul",
+        "lobo_guara"
+    ],
+    "creatures_discovered": [
+        "chamas",
+        "brasa",
+        "vendaval_de_fogo",
+        "espirito_de_fogo",
+        "lobo_alfa_de_fogo"
+    ],
+    "statistics": {
+        "combats_won": 39,
+        "combats_lost": 8,
+        "enemies_defeated": 70,
+        "gold_earned": 761,
+        "levels_gained": 0,
+        "animals_rescued": 1,
+        "bosses_defeated": 2
+    },
+    "settings": {
+        "music_volume": 0.7,
+        "sfx_volume": 0.8,
+        "fullscreen": false
+    },
+    "play_time": 1835.6026983261108,
+    "last_save_time": 1787341783.4763315
+}

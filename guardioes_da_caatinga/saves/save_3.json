@@ -1,0 +1,59 @@
+{
+    "version": "2.0",
+    "unlocked_animals": [
+        "tatu_bola"
+    ],
+    "unlocked_biomes": [
+        "caatinga"
+    ],
+    "permanent_upgrades": [],
+    "animal_data": {
+        "tatu_bola": {
+            "level": 2,
+            "xp": 6,
+            "xp_to_level": 75,
+            "base_attack": 9,
+            "base_defense": 16,
+            "base_speed": 6,
+            "base_crit_chance": 5,
+            "base_dodge": 5,
+            "max_hp": 94,
+            "regen_per_turn": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "cooldown_reduction": 0,
+            "equipped_item": null
+        }
+    },
+    "inventory": [
+        "couraca_natural"
+    ],
+    "active_party": [
+        "tatu_bola",
+        "tatu_bola"
+    ],
+    "bestiary_discovered": [
+        "tatu_bola"
+    ],
+    "creatures_discovered": [
+        "brasa",
+        "chamas"
+    ],
+    "statistics": {
+        "combats_won": 2,
+        "combats_lost": 0,
+        "enemies_defeated": 4,
+        "gold_earned": 30,
+        "levels_gained": 0,
+        "animals_rescued": 0,
+        "bosses_defeated": 0
+    },
+    "settings": {
+        "music_volume": 0.7,
+        "sfx_volume": 0.8,
+        "fullscreen": false
+    },
+    "play_time": 107.53636336326599,
+    "last_save_time": 1787341347.5268123
+}

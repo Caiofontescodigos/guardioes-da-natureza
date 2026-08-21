@@ -1,0 +1,84 @@
+{
+    "upgrades": {
+        "instinto_selvagem": {
+            "id": "instinto_selvagem",
+            "name": "Instinto Selvagem",
+            "description": "Aumenta o ataque em 3 permanentemente.",
+            "effect": "permanent_attack",
+            "value": 3,
+            "category": "offense"
+        },
+        "pele_resistente": {
+            "id": "pele_resistente",
+            "name": "Pele Resistente",
+            "description": "Aumenta a defesa em 4 permanentemente.",
+            "effect": "permanent_defense",
+            "value": 4,
+            "category": "defense"
+        },
+        "recuperacao_natural": {
+            "id": "recuperacao_natural",
+            "name": "Recuperação Natural",
+            "description": "Recupera 2 HP no início de cada turno.",
+            "effect": "regen_per_turn",
+            "value": 2,
+            "category": "defense"
+        },
+        "garras_afiadas": {
+            "id": "garras_afiadas",
+            "name": "Garras Afiadas",
+            "description": "Aumenta a chance de crítico em 10%.",
+            "effect": "permanent_crit",
+            "value": 10,
+            "category": "offense"
+        },
+        "reflexos_rapidos": {
+            "id": "reflexos_rapidos",
+            "name": "Reflexos Rápidos",
+            "description": "Aumenta a chance de esquiva em 8%.",
+            "effect": "permanent_dodge",
+            "value": 8,
+            "category": "defense"
+        },
+        "vida_selvagem": {
+            "id": "vida_selvagem",
+            "name": "Vida Selvagem",
+            "description": "Aumenta a vida máxima em 10.",
+            "effect": "permanent_max_hp",
+            "value": 10,
+            "category": "defense"
+        },
+        "velocidade_raio": {
+            "id": "velocidade_raio",
+            "name": "Velocidade Raio",
+            "description": "Aumenta a velocidade em 3.",
+            "effect": "permanent_speed",
+            "value": 3,
+            "category": "utility"
+        },
+        "golpe_critico": {
+            "id": "golpe_critico",
+            "name": "Golpe Crítico",
+            "description": "Aumenta o dano crítico em 50%.",
+            "effect": "crit_damage_boost",
+            "value": 50,
+            "category": "offense"
+        },
+        "couraca": {
+            "id": "couraca",
+            "name": "Couraça",
+            "description": "Reduz o dano recebido em 2 permanentemente.",
+            "effect": "damage_reduction",
+            "value": 2,
+            "category": "defense"
+        },
+        "sangue_quente": {
+            "id": "sangue_quente",
+            "name": "Sangue Quente",
+            "description": "Causa 3 de dano adicional a inimigos com menos de 30% de vida.",
+            "effect": "execute_bonus",
+            "value": 3,
+            "category": "offense"
+        }
+    }
+}

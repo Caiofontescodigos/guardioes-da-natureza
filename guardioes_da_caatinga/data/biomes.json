@@ -1,0 +1,75 @@
+{
+    "biomes": {
+        "caatinga": {
+            "id": "caatinga",
+            "name": "Caatinga",
+            "description": "O sertao seco com criaturas elementais flamejantes.",
+            "color": [139, 119, 42],
+            "enemy_level_range": [1, 3],
+            "enemy_types": ["brasa", "chamas"],
+            "spawn_weights": {"brasa": 5, "chamas": 2},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": true,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "tatu_bola"
+        },
+        "cerrado": {
+            "id": "cerrado",
+            "name": "Cerrado",
+            "description": "Vegetacao aberta dominada por espiritos de fogo.",
+            "color": [180, 140, 60],
+            "enemy_level_range": [3, 6],
+            "enemy_types": ["brasa", "chamas", "espirito_de_fogo"],
+            "spawn_weights": {"brasa": 2, "chamas": 5, "espirito_de_fogo": 2},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": false,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "lobo_guara"
+        },
+        "pantanal": {
+            "id": "pantanal",
+            "name": "Pantanal",
+            "description": "Areas alagadas com criaturas mais fortes e resistentes.",
+            "color": [50, 120, 80],
+            "enemy_level_range": [6, 9],
+            "enemy_types": ["chamas", "espirito_de_fogo", "furacao"],
+            "spawn_weights": {"chamas": 2, "espirito_de_fogo": 5, "furacao": 1},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": false,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "arara_azul",
+            "bonus_rescue": "capivara"
+        },
+        "mata_atlantica": {
+            "id": "mata_atlantica",
+            "name": "Mata Atlantica",
+            "description": "Florestas densas com predadores elementais letais.",
+            "color": [30, 100, 50],
+            "enemy_level_range": [9, 12],
+            "enemy_types": ["espirito_de_fogo", "furacao", "lobo_de_fogo"],
+            "spawn_weights": {"espirito_de_fogo": 2, "furacao": 5, "lobo_de_fogo": 2},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": false,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "tamandua_bandeira"
+        },
+        "amazonia": {
+            "id": "amazonia",
+            "name": "Amazonia",
+            "description": "A ultima regiao, onde as criaturas mais perigosas residem.",
+            "color": [20, 80, 30],
+            "enemy_level_range": [12, 15],
+            "enemy_types": ["furacao", "lobo_de_fogo", "espirito_de_fogo"],
+            "spawn_weights": {"furacao": 3, "lobo_de_fogo": 5, "espirito_de_fogo": 1},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": false,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "onca_pintada"
+        }
+    }
+}

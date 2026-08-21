@@ -1,0 +1,139 @@
+{
+    "events": {
+        "animal_ferido": {
+            "id": "animal_ferido",
+            "name": "Animal Ferido",
+            "description": "Você encontra um animal ferido na estrada. O que deseja fazer?",
+            "choices": [
+                {
+                    "text": "Curar o animal (perder 10 HP, ganhar 20 XP)",
+                    "effect": "heal_animal",
+                    "hp_cost": 10,
+                    "xp_reward": 20,
+                    "gold_reward": 0
+                },
+                {
+                    "text": "Deixar passar",
+                    "effect": "nothing",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0
+                },
+                {
+                    "text": "Procurar itens por perto",
+                    "effect": "search_items",
+                    "hp_cost": 0,
+                    "xp_reward": 5,
+                    "gold_reward": 15
+                }
+            ]
+        },
+        "acampamento_abandonado": {
+            "id": "acampamento_abandonado",
+            "name": "Acampamento Abandonado",
+            "description": "Você encontra um acampamento abandonado. Há sinais de atividade recente.",
+            "choices": [
+                {
+                    "text": "Procurar suprimentos (50% chance de ganhar 20 gold, 50% de perder 5 HP)",
+                    "effect": "search_supplies",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 20,
+                    "hp_loss_chance": 50,
+                    "hp_loss_amount": 5
+                },
+                {
+                    "text": "Descansar (recuperar 15 HP)",
+                    "effect": "rest",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0,
+                    "heal_amount": 15
+                },
+                {
+                    "text": "Seguir em frente",
+                    "effect": "nothing",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0
+                }
+            ]
+        },
+        "comerciante_ambulante": {
+            "id": "comerciante_ambulante",
+            "name": "Comerciante Ambulante",
+            "description": "Um misterioso comerciante aparece oferecendo seus produtos.",
+            "choices": [
+                {
+                    "text": "Comprar poção de vida (30 gold, cura 30 HP)",
+                    "effect": "buy_health_potion",
+                    "gold_cost": 30,
+                    "heal_amount": 30
+                },
+                {
+                    "text": "Comprar mapa (25 gold, revela o mapa)",
+                    "effect": "buy_map",
+                    "gold_cost": 25,
+                    "reveal_map": true
+                },
+                {
+                    "text": "Ir embora",
+                    "effect": "nothing",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0
+                }
+            ]
+        },
+        "armadilha_de_cacadores": {
+            "id": "armadilha_de_cacadores",
+            "name": "Espiritos da Chama",
+            "description": "Criaturas elementais bloqueiam seu caminho com chamas!",
+            "choices": [
+                {
+                    "text": "Enfrentar as criaturas (perder 10 HP, mas ganhar 15 XP)",
+                    "effect": "escape_trap",
+                    "hp_cost": 10,
+                    "xp_reward": 15,
+                    "gold_reward": 0
+                },
+                {
+                    "text": "Apagar as chamas (perder 5 HP, ganhar 10 gold)",
+                    "effect": "destroy_trap",
+                    "hp_cost": 5,
+                    "xp_reward": 0,
+                    "gold_reward": 10
+                }
+            ]
+        },
+        "fonte_natural": {
+            "id": "fonte_natural",
+            "name": "Fonte Natural",
+            "description": "Você encontra uma fonte de água cristalina no meio do sertão.",
+            "choices": [
+                {
+                    "text": "Beber da fonte (recuperar 25 HP)",
+                    "effect": "drink_water",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0,
+                    "heal_amount": 25
+                },
+                {
+                    "text": "Encher cantis (ganhar 10 gold)",
+                    "effect": "fill_canteens",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 10
+                },
+                {
+                    "text": "Ignorar",
+                    "effect": "nothing",
+                    "hp_cost": 0,
+                    "xp_reward": 0,
+                    "gold_reward": 0
+                }
+            ]
+        }
+    }
+}

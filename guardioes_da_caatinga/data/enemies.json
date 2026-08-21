@@ -1,0 +1,148 @@
+{
+    "enemies": {
+        "brasa": {
+            "id": "brasa",
+            "name": "Brasa",
+            "description": "Pequena criatura formada pelas cinzas vivas do sertao.",
+            "tier": 1,
+            "stats": {
+                "hp": 18,
+                "attack": 7,
+                "defense": 2,
+                "speed": 14,
+                "crit_chance": 8,
+                "dodge": 15
+            },
+            "skills": ["jato_de_brasa", "golpe_ardente"],
+            "xp_reward": 10,
+            "gold_reward": 5,
+            "region": "Caatinga",
+            "first_appearance": "Regiao 1"
+        },
+        "chamas": {
+            "id": "chamas",
+            "name": "Chamas",
+            "description": "Uma manifestacao agressiva do fogo que se espalha pelas trilhas.",
+            "tier": 2,
+            "stats": {
+                "hp": 35,
+                "attack": 10,
+                "defense": 6,
+                "speed": 9,
+                "crit_chance": 10,
+                "dodge": 8
+            },
+            "skills": ["jato_de_brasa", "golpe_ardente"],
+            "xp_reward": 15,
+            "gold_reward": 8,
+            "region": "Caatinga",
+            "first_appearance": "Regiao 1"
+        },
+        "espirito_de_fogo": {
+            "id": "espirito_de_fogo",
+            "name": "Espirito de Fogo",
+            "description": "Uma entidade misteriosa criada pelo calor extremo.",
+            "tier": 3,
+            "stats": {
+                "hp": 30,
+                "attack": 15,
+                "defense": 5,
+                "speed": 14,
+                "crit_chance": 14,
+                "dodge": 18
+            },
+            "skills": ["emboscada", "investida_rapida"],
+            "xp_reward": 20,
+            "gold_reward": 12,
+            "region": "Cerrado",
+            "first_appearance": "Regiao 2"
+        },
+        "furacao": {
+            "id": "furacao",
+            "name": "Furacao",
+            "description": "Um redemoinho incandescente que atravessa a caatinga.",
+            "tier": 4,
+            "stats": {
+                "hp": 55,
+                "attack": 16,
+                "defense": 10,
+                "speed": 16,
+                "crit_chance": 14,
+                "dodge": 14
+            },
+            "skills": ["olho_da_chama", "investida_rapida", "tempestade_de_fogo"],
+            "xp_reward": 28,
+            "gold_reward": 18,
+            "is_elite": true,
+            "region": "Pantanal",
+            "first_appearance": "Regiao 3"
+        },
+        "lobo_de_fogo": {
+            "id": "lobo_de_fogo",
+            "name": "Lobo de Fogo",
+            "description": "Predador elemental que caça em regioes devastadas.",
+            "tier": 5,
+            "stats": {
+                "hp": 70,
+                "attack": 18,
+                "defense": 12,
+                "speed": 11,
+                "crit_chance": 12,
+                "dodge": 10
+            },
+            "skills": ["ordem_de_ataque", "grito_de_guerra", "golpe_fortificado"],
+            "xp_reward": 35,
+            "gold_reward": 25,
+            "is_elite": true,
+            "region": "Mata Atlantica",
+            "first_appearance": "Regiao 4"
+        },
+        "lobo_alfa_de_fogo": {
+            "id": "lobo_alfa_de_fogo",
+            "name": "Lobo Alfa de Fogo",
+            "description": "O lider dos lobos flamejantes.",
+            "tier": 6,
+            "stats": {
+                "hp": 200,
+                "attack": 22,
+                "defense": 15,
+                "speed": 12,
+                "crit_chance": 18,
+                "dodge": 10
+            },
+            "skills": ["investida_alpha", "furor_elemental", "contrachama", "golpe_fortificado"],
+            "xp_reward": 80,
+            "gold_reward": 55,
+            "is_boss": true,
+            "region": "Todas",
+            "first_appearance": "Regiao 1"
+        },
+        "vendaval_de_fogo": {
+            "id": "vendaval_de_fogo",
+            "name": "Vendaval de Fogo",
+            "description": "Uma tempestade viva de calor e destruicao.",
+            "tier": 6,
+            "stats": {
+                "hp": 170,
+                "attack": 19,
+                "defense": 12,
+                "speed": 20,
+                "crit_chance": 16,
+                "dodge": 18
+            },
+            "skills": ["investida_rapida", "vento_maldoso", "furor_elemental", "contrachama"],
+            "xp_reward": 80,
+            "gold_reward": 55,
+            "is_boss": true,
+            "region": "Todas",
+            "first_appearance": "Regiao 1"
+        }
+    },
+    "bosses": {
+        "caatinga": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+        "cerrado": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+        "pantanal": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+        "mata_atlantica": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+        "amazonia": ["lobo_alfa_de_fogo", "vendaval_de_fogo"]
+    }
+}

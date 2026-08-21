@@ -1,0 +1,84 @@
+{
+    "relics": {
+        "cantil_do_sertanejo": {
+            "id": "cantil_do_sertanejo",
+            "name": "Cantil do Sertanejo",
+            "description": "Recupera 3 HP no início de cada combate.",
+            "effect": "regen_on_combat_start",
+            "value": 3,
+            "rarity": "common"
+        },
+        "chapeu_de_couro": {
+            "id": "chapeu_de_couro",
+            "name": "Chapéu de Couro",
+            "description": "Aumenta a defesa em 3 durante todo o jogo.",
+            "effect": "permanent_defense",
+            "value": 3,
+            "rarity": "common"
+        },
+        "apito_do_guardiao": {
+            "id": "apito_do_guardiao",
+            "name": "Apito do Guardião",
+            "description": "Aumenta a velocidade em 2 durante todo o jogo.",
+            "effect": "permanent_speed",
+            "value": 2,
+            "rarity": "uncommon"
+        },
+        "medalhao_do_ibama": {
+            "id": "medalhao_do_ibama",
+            "name": "Medalhão do IBAMA",
+            "description": "Aumenta o ataque em 4 durante todo o jogo.",
+            "effect": "permanent_attack",
+            "value": 4,
+            "rarity": "rare"
+        },
+        "mapa_antigo": {
+            "id": "mapa_antigo",
+            "name": "Mapa Antigo",
+            "description": "Revela todos os nós do mapa atual.",
+            "effect": "reveal_map",
+            "value": 0,
+            "rarity": "rare"
+        },
+        "pedra_sagrada": {
+            "id": "pedra_sagrada",
+            "name": "Pedra Sagrada",
+            "description": "Aumenta a vida máxima em 15.",
+            "effect": "permanent_max_hp",
+            "value": 15,
+            "rarity": "uncommon"
+        },
+        "olho_de_falcon": {
+            "id": "olho_de_falcon",
+            "name": "Olho de Falcão",
+            "description": "Aumenta a chance de crítico em 10%.",
+            "effect": "permanent_crit",
+            "value": 10,
+            "rarity": "uncommon"
+        },
+        "amuleta_da_sorte": {
+            "id": "amuleta_da_sorte",
+            "name": "Amuleta da Sorte",
+            "description": "Aumenta a chance de esquiva em 8%.",
+            "effect": "permanent_dodge",
+            "value": 8,
+            "rarity": "common"
+        },
+        "cinto_de_utilidades": {
+            "id": "cinto_de_utilidades",
+            "name": "Cinto de Utilidades",
+            "description": "Reduz o cooldown de todas as habilidades em 1.",
+            "effect": "cooldown_reduction",
+            "value": 1,
+            "rarity": "rare"
+        },
+        "bolsa_de_suprimentos": {
+            "id": "bolsa_de_suprimentos",
+            "name": "Bolsa de Suprimentos",
+            "description": "Ganhe 5 gold extra ao vencer um combate.",
+            "effect": "bonus_gold",
+            "value": 5,
+            "rarity": "common"
+        }
+    }
+}

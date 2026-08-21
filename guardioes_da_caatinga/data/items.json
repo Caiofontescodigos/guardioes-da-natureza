@@ -1,0 +1,120 @@
+{
+    "items": {
+        "casco_reforcado": {
+            "id": "casco_reforcado",
+            "name": "Casco Reforcado",
+            "icon": "Casco Reforcado",
+            "emoji": "\ud83d\udee1\ufe0f",
+            "description": "+10 Defesa - Escudo natural de um tatu-bola endurecido.",
+            "effect": "permanent_defense",
+            "value": 10,
+            "rarity": "common"
+        },
+        "pegadas_rapidas": {
+            "id": "pegadas_rapidas",
+            "name": "Pegadas Rapidas",
+            "icon": "Pegadas Rapidas",
+            "emoji": "\ud83d\udc5f",
+            "description": "+5 Velocidade - Rastros de lobo-guara que aumentam a velocidade.",
+            "effect": "permanent_speed",
+            "value": 5,
+            "rarity": "common"
+        },
+        "cantil_natural": {
+            "id": "cantil_natural",
+            "name": "Cantil Natural",
+            "icon": "Cantil Natural",
+            "emoji": "\ud83d\udca7",
+            "description": "+15 Vida - Agua cristalina da caatinga que fortalece a vida.",
+            "effect": "permanent_max_hp",
+            "value": 15,
+            "rarity": "common"
+        },
+        "osso_resistente": {
+            "id": "osso_resistente",
+            "name": "Osso Resistente",
+            "icon": "Osso Resistente",
+            "emoji": "\ud83e\uddb4",
+            "description": "+5 Ataque - Osso encontrado no sertao que fortalece os golpes.",
+            "effect": "permanent_attack",
+            "value": 5,
+            "rarity": "common"
+        },
+        "ervas_medicinais": {
+            "id": "ervas_medicinais",
+            "name": "Ervas Medicinais",
+            "icon": "Ervas Medicinais",
+            "emoji": "\ud83c\udf3f",
+            "description": "+3 Regen/Turno - Ervas do cerrado que regeneram vida a cada turno.",
+            "effect": "regen_per_turn",
+            "value": 3,
+            "rarity": "uncommon"
+        },
+        "medalha_do_sertao": {
+            "id": "medalha_do_sertao",
+            "name": "Medalha do Sertao",
+            "icon": "Medalha do Sertao",
+            "emoji": "\ud83d\udd25",
+            "description": "+8 Ataque - Medalha antiga dos guardioes da caatinga.",
+            "effect": "permanent_attack",
+            "value": 8,
+            "rarity": "uncommon"
+        },
+        "garra_afiada": {
+            "id": "garra_afiada",
+            "name": "Garra Afiada",
+            "icon": "Garra Afiada",
+            "emoji": "\u2694\ufe0f",
+            "description": "+12 Critico - Garra de onca pintada, afiada e mortal.",
+            "effect": "permanent_crit",
+            "value": 12,
+            "rarity": "uncommon"
+        },
+        "pena_sagrada": {
+            "id": "pena_sagrada",
+            "name": "Pena Sagrada",
+            "icon": "Pena Sagrada",
+            "emoji": "\ud83e\udeb6",
+            "description": "+10 Esquiva - Pena de arara-azul que aumenta a sorte.",
+            "effect": "permanent_dodge",
+            "value": 10,
+            "rarity": "uncommon"
+        },
+        "instinto_selvagem": {
+            "id": "instinto_selvagem",
+            "name": "Instinto Selvagem",
+            "icon": "Instinto Selvagem",
+            "emoji": "\ud83d\udc3e",
+            "description": "+10 Vida, +3 Ataque - Essencia pura do instinto animal.",
+            "effect": "permanent_max_hp",
+            "value": 10,
+            "effect2": "permanent_attack",
+            "value2": 3,
+            "rarity": "rare"
+        },
+        "couraca_natural": {
+            "id": "couraca_natural",
+            "name": "Couraca Natural",
+            "icon": "Couraca Natural",
+            "emoji": "\ud83d\udee1\ufe0f",
+            "description": "+12 Defesa, -3 Dano - Armadura formada por milhoes de anos de evolucao.",
+            "effect": "permanent_defense",
+            "value": 12,
+            "effect2": "damage_reduction",
+            "value2": 3,
+            "rarity": "rare"
+        },
+        "olho_de_aguia": {
+            "id": "olho_de_aguia",
+            "name": "Olho de Aguia",
+            "icon": "Olho de Aguia",
+            "emoji": "\ud83e\udd81",
+            "description": "+15 Critico, +4 Ataque - Visao afiada que nunca erra o alvo.",
+            "effect": "permanent_crit",
+            "value": 15,
+            "effect2": "permanent_attack",
+            "value2": 4,
+            "rarity": "rare"
+        }
+    }
+}
