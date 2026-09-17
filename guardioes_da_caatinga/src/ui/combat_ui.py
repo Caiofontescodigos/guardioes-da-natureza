@@ -3,6 +3,10 @@ import math
 from config import (WHITE, BLACK, GRAY, DARK_GRAY, RED, GREEN, BLUE, YELLOW, BROWN,
                     CREAM, SCREEN_WIDTH, SCREEN_HEIGHT, NODE_COLORS)
 from src.ui.components import draw_text, draw_bar
+from src.ui.text import get_font
+
+CARD_W, CARD_H = 185, 340
+CARD_GAP = 200
 
 
 class FloatingText:
@@ -22,8 +26,7 @@ class FloatingText:
 
     def draw(self, surface):
         alpha = max(0, min(255, int(255 * (self.duration / self.max_duration))))
-        font = pygame.font.Font(None, self.size)
-        text_surface = font.render(self.text, True, self.color)
+        text_surface = get_font(self.size).render(self.text, True, self.color)
         text_surface.set_alpha(alpha)
         surface.blit(text_surface, (self.x - text_surface.get_width() // 2, self.y))
 

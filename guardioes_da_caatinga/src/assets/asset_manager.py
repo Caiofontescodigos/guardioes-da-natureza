@@ -1,15 +1,18 @@
 import os
 import pygame
+from src.ui.text import get_font
 
 
 ANIMAL_SPRITE_MAP = {
-    "tatu_bola": "TatuBola.jpeg",
-    "lobo_guara": "LoboGuara.jpeg",
-    "arara_azul": "AraraAzul.jpeg",
-    "tamandua_bandeira": "Tamandua.jpeg",
-    "capivara": "Capivara.jpeg",
-    "onca_pintada": "OnçaPintada.jpeg",
+    "tatu_bola": {"base": "TatuBola.jpeg", "evolution_1": None, "evolution_2": None},
+    "lobo_guara": {"base": "LoboGuara.jpeg", "evolution_1": None, "evolution_2": None},
+    "arara_azul": {"base": "AraraAzul.jpeg", "evolution_1": None, "evolution_2": None},
+    "tamandua_bandeira": {"base": "Tamandua.jpeg", "evolution_1": None, "evolution_2": None},
+    "capivara": {"base": "Capivara.jpeg", "evolution_1": None, "evolution_2": None},
+    "onca_pintada": {"base": "OnçaPintada.jpeg", "evolution_1": None, "evolution_2": None},
 }
+
+EVOLUTION_STAGE_FILES = {0: "base", 1: "evolution_1", 2: "evolution_2"}
 
 ENEMY_SPRITE_MAP = {
     "brasa": "Brasa.jpeg",
@@ -67,11 +70,12 @@ class AssetManager:
     def get_raw(self, filename):
         return self._cache.get(filename)
 
-    def get_sprite(self, entity_id, is_enemy=False, max_width=140, max_height=140, flip_horizontal=False):
+    def get_sprite(self, entity_id, is_enemy=False, max_width=140, max_height=140,
+                   flip_horizontal=False, evolution_stage=0):
         if is_enemy:
             filename = ENEMY_SPRITE_MAP.get(entity_id)
         else:
-            filename = ANIMAL_SPRITE_MAP.get(entity_id)
+            filename = self._resolve_animal_sprite(entity_id, evolution_stage)
 
         if filename is None:
             print(f"[AssetManager] Sprite nao mapeado para '{entity_id}'")
@@ -92,8 +96,27 @@ class AssetManager:
         self._surfaces_cache[cache_key] = scaled
         return scaled
 
-    def get_animal_sprite(self, animal_id, max_width=140, max_height=140):
-        return self.get_sprite(animal_id, is_enemy=False, max_width=max_width, max_height=max_height, flip_horizontal=False)
+    def _resolve_animal_sprite(self, animal_id, evolution_stage):
+        """Resolve the sprite filename for an animal, walking the evolution
+        sprite chain from the requested stage down to the base form so a
+        missing evolution sprite falls back to the previous form's image.
+        Returns None when no sprite is available at all."""
+        entry = ANIMAL_SPRITE_MAP.get(animal_id)
+        if isinstance(entry, str):
+            return entry
+        if not isinstance(entry, dict):
+            return None
+        for stage in range(max(0, evolution_stage), -1, -1):
+            key = EVOLUTION_STAGE_FILES.get(stage)
+            fname = entry.get(key)
+            if fname and fname in self._cache:
+                return fname
+        return None
+
+    def get_animal_sprite(self, animal_id, evolution_stage=0, max_width=140, max_height=140):
+        return self.get_sprite(animal_id, is_enemy=False,
+                               max_width=max_width, max_height=max_height,
+                               evolution_stage=evolution_stage)
 
     def get_enemy_sprite(self, enemy_id, max_width=140, max_height=140):
         return self.get_sprite(enemy_id, is_enemy=True, max_width=max_width, max_height=max_height, flip_horizontal=False)
@@ -142,7 +165,7 @@ class AssetManager:
         color = (80, 40, 40) if is_enemy else (40, 60, 80)
         pygame.draw.rect(surface, color, rect, border_radius=8)
         pygame.draw.rect(surface, (200, 200, 200), rect, 2, border_radius=8)
-        font = pygame.font.Font(None, 16)
+        font = get_font(16)
         text = font.render("?", True, (200, 200, 200))
         text_rect = text.get_rect(center=(cx, cy))
         surface.blit(text, text_rect)

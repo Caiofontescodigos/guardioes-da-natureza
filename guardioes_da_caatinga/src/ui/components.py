@@ -1,5 +1,7 @@
 import pygame
 from config import WHITE, BLACK, GRAY, DARK_GRAY, RED, GREEN, BLUE, YELLOW, BROWN, CREAM, SCREEN_WIDTH, SCREEN_HEIGHT
+from src.ui.text import (draw_text as _draw_text, draw_button_text,
+                         draw_text_centered, get_font)
 
 class Button:
     def __init__(self, x, y, width, height, text, color=BLUE, hover_color=None, text_color=WHITE, font_size=20):
@@ -39,11 +41,8 @@ class Button:
         pygame.draw.rect(surface, color, self.rect, border_radius=8)
         pygame.draw.rect(surface, BLACK, self.rect, 2, border_radius=8)
 
-        if self.font is None:
-            self.font = pygame.font.Font(None, self.font_size)
-        text_surface = self.font.render(self.text, True, self.text_color)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        surface.blit(text_surface, text_rect)
+        draw_button_text(surface, self.text, self.rect, color=self.text_color,
+                         font_size=self.font_size)
 
     def reset_click(self):
         self.is_clicked = False
@@ -71,18 +70,15 @@ class HealthBar:
         color = self.low_color if ratio < 0.3 else self.fill_color
         pygame.draw.rect(surface, color, fill_rect)
         pygame.draw.rect(surface, self.border_color, self.rect, 2)
-
-        font = pygame.font.Font(None, 18)
-        text = font.render(f"{self.current_hp}/{self.max_hp}", True, WHITE)
-        text_rect = text.get_rect(center=self.rect.center)
-        surface.blit(text, text_rect)
+        draw_text_centered(surface, f"{self.current_hp}/{self.max_hp}",
+                           self.rect.centerx, self.rect.centery, 18, WHITE)
 
 class Tooltip:
     def __init__(self):
         self.visible = False
         self.text = ""
         self.rect = pygame.Rect(0, 0, 0, 0)
-        self.font = pygame.font.Font(None, 20)
+        self.font = get_font(20)
         self.padding = 10
 
     def show(self, text, pos):
@@ -104,10 +100,12 @@ class Tooltip:
         pygame.draw.rect(surface, (30, 30, 30), self.rect, border_radius=5)
         pygame.draw.rect(surface, YELLOW, self.rect, 2, border_radius=5)
         lines = self.text.split('\n')
-        y_offset = self.rect.y + self.padding
+        total_h = len(lines) * 22
+        y_offset = self.rect.y + (self.rect.h - total_h) // 2
         for line in lines:
             text_surface = self.font.render(line, True, WHITE)
-            surface.blit(text_surface, (self.rect.x + self.padding, y_offset))
+            rect = text_surface.get_rect(center=(self.rect.centerx, int(y_offset)))
+            surface.blit(text_surface, rect.topleft)
             y_offset += 22
 
 class Panel:
@@ -133,7 +131,7 @@ class Label:
 
     def draw(self, surface, center=False):
         if self.font is None:
-            self.font = pygame.font.Font(None, self.font_size)
+            self.font = get_font(self.font_size)
         text_surface = self.font.render(self.text, True, self.color)
         if center:
             text_rect = text_surface.get_rect(center=(self.x, self.y))
@@ -142,14 +140,8 @@ class Label:
         surface.blit(text_surface, text_rect)
 
 def draw_text(surface, text, pos, font_size=24, color=WHITE, center=False):
-    font = pygame.font.Font(None, font_size)
-    text_surface = font.render(text, True, color)
-    if center:
-        text_rect = text_surface.get_rect(center=pos)
-    else:
-        text_rect = text_surface.get_rect(topleft=pos)
-    surface.blit(text_surface, text_rect)
-    return text_rect
+    return _draw_text(surface, text, pos, font_size=font_size, color=color,
+                      center=center)
 
 def draw_bar(surface, x, y, width, height, current, maximum, fill_color=GREEN, bg_color=DARK_GRAY, border=True):
     pygame.draw.rect(surface, bg_color, (x, y, width, height))
@@ -159,10 +151,8 @@ def draw_bar(surface, x, y, width, height, current, maximum, fill_color=GREEN, b
     pygame.draw.rect(surface, color, (x, y, fill_width, height))
     if border:
         pygame.draw.rect(surface, BLACK, (x, y, width, height), 2)
-    font = pygame.font.Font(None, 18)
-    text = font.render(f"{current}/{maximum}", True, WHITE)
-    text_rect = text.get_rect(center=(x + width // 2, y + height // 2))
-    surface.blit(text, text_rect)
+    draw_text_centered(surface, f"{current}/{maximum}",
+                       x + width // 2, y + height // 2, 18, WHITE)
 
 def draw_rounded_rect(surface, color, rect, radius=10):
     pygame.draw.rect(surface, color, rect, border_radius=radius)

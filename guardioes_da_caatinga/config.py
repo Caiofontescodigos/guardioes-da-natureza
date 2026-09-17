@@ -5,6 +5,29 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 IMAGES_DIR = os.path.join(os.path.dirname(BASE_DIR), "Imagensjogo")
 MUSIC_DIR = os.path.join(os.path.dirname(BASE_DIR))
+SAVE_DIR = os.path.join(BASE_DIR, "saves")
+GLOBAL_SETTINGS_PATH = os.path.join(SAVE_DIR, "settings.json")
+
+
+def load_global_settings():
+    try:
+        if os.path.exists(GLOBAL_SETTINGS_PATH):
+            with open(GLOBAL_SETTINGS_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+    except Exception:
+        pass
+    return {"fullscreen": False, "music_volume": 0.7, "sfx_volume": 0.8}
+
+
+def save_global_settings(settings):
+    try:
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        with open(GLOBAL_SETTINGS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Erro ao salvar configuracoes globais: {e}")
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -48,6 +71,16 @@ NODE_COLORS = {
     "rescue_animal": (100, 200, 160)
 }
 
+# Elite node configuration
+ELITE_HP_MULTIPLIER = 2.5
+ELITE_ATK_MULTIPLIER = 1.8
+ELITE_DEF_MULTIPLIER = 1.5
+ELITE_SPD_MULTIPLIER = 1.3
+ELITE_XP_MULTIPLIER = 3.0
+ELITE_GOLD_MULTIPLIER = 2.5
+ELITE_SPAWN_CHANCE = 0.35
+ELITE_MIN_FLOOR = 2
+
 def load_json(filename):
     filepath = os.path.join(DATA_DIR, filename)
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -67,9 +100,6 @@ def load_enemies():
 def load_skills():
     return load_json("skills.json")["skills"]
 
-def load_relics():
-    return load_json("relics.json")["relics"]
-
 def load_events():
     return load_json("events.json")["events"]
 
@@ -78,6 +108,3 @@ def load_biomes():
 
 def load_upgrades():
     return load_json("upgrades.json")["upgrades"]
-
-def load_items():
-    return load_json("items.json")["items"]

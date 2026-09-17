@@ -1,5 +1,6 @@
 import pygame
 from config import SCREEN_WIDTH, SCREEN_HEIGHT
+from src.ui.text import draw_text as _draw_text, draw_button_text
 
 SAFE_MARGIN = 40
 CENTER_X = SCREEN_WIDTH // 2
@@ -13,6 +14,22 @@ SERTAO_CREAM = (255, 240, 210)
 SERTAO_GOLD = (255, 215, 0)
 SERTAO_RED = (180, 60, 40)
 SERTAO_GREEN = (80, 140, 60)
+
+MOUSE_SCALE = 1.0
+MOUSE_OFFSET = (0, 0)
+
+
+def update_mouse_transform(scale, offset_x, offset_y):
+    global MOUSE_SCALE, MOUSE_OFFSET
+    MOUSE_SCALE = max(0.01, scale)
+    MOUSE_OFFSET = (offset_x, offset_y)
+
+
+def get_mouse_pos():
+    x, y = pygame.mouse.get_pos()
+    vx = (x - MOUSE_OFFSET[0]) / MOUSE_SCALE
+    vy = (y - MOUSE_OFFSET[1]) / MOUSE_SCALE
+    return (vx, vy)
 
 
 class LayoutArea:
@@ -123,7 +140,8 @@ def draw_sertao_panel(surface, x, y, w, h, border_color=SERTAO_BORDER, alpha=220
     pygame.draw.rect(surface, border_color, (x, y, w, h), 2, border_radius=10)
 
 
-def draw_sertao_button(surface, rect, text, is_hovered=False, enabled=True, color=None):
+def draw_sertao_button(surface, rect, text, is_hovered=False, enabled=True, color=None,
+                       font_size=24):
     if color is None:
         color = SERTAO_PANEL
 
@@ -143,18 +161,9 @@ def draw_sertao_button(surface, rect, text, is_hovered=False, enabled=True, colo
     pygame.draw.rect(surface, bg, rect, border_radius=8)
     pygame.draw.rect(surface, border, rect, 2, border_radius=8)
 
-    font = pygame.font.Font(None, 24)
-    txt_surf = font.render(text, True, text_color)
-    txt_rect = txt_surf.get_rect(center=rect.center)
-    surface.blit(txt_surf, txt_rect)
+    draw_button_text(surface, text, rect, color=text_color, font_size=font_size)
 
 
 def draw_text(surface, text, pos, font_size=24, color=(255, 255, 255), center=False):
-    font = pygame.font.Font(None, font_size)
-    text_surface = font.render(str(text), True, color)
-    if center:
-        text_rect = text_surface.get_rect(center=pos)
-    else:
-        text_rect = text_surface.get_rect(topleft=pos)
-    surface.blit(text_surface, text_rect)
-    return text_rect
+    return _draw_text(surface, text, pos, font_size=font_size, color=color,
+                      center=center)

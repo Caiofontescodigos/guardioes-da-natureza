@@ -71,12 +71,6 @@
                     "heal_amount": 30
                 },
                 {
-                    "text": "Comprar mapa (25 gold, revela o mapa)",
-                    "effect": "buy_map",
-                    "gold_cost": 25,
-                    "reveal_map": true
-                },
-                {
                     "text": "Ir embora",
                     "effect": "nothing",
                     "hp_cost": 0,

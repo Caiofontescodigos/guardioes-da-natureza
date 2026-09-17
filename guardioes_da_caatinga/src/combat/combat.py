@@ -178,7 +178,8 @@ class CombatSystem:
 
             crit_boost = skill.get("crit_boost", 0) if effect == "crit_boost" else 0
             if random.randint(1, 100) <= (unit.crit_chance + crit_boost):
-                actual_damage = int(actual_damage * 1.5)
+                bonus = getattr(unit, "crit_damage_boost", 0) or 0
+                actual_damage = int(actual_damage * (1.5 + bonus / 100))
                 is_crit = True
 
             dmg_dealt, dodged = target.take_damage(actual_damage)
@@ -189,6 +190,13 @@ class CombatSystem:
                 crit_text = " CRÍTICO!" if is_crit else ""
                 self._log(f"{unit.name} ataca {target.name} por {dmg_dealt}{crit_text}")
                 events.append(CombatEvent("damage", unit.name, target.name, dmg_dealt, is_crit=is_crit))
+
+                execute = getattr(unit, "execute_bonus", 0) or 0
+                if execute > 0 and target.is_alive and target.hp <= execute:
+                    target.hp = 0
+                    target.is_alive = False
+                    self._log(f"{target.name} eliminado por {unit.name} (EXECUÇÃO!)")
+                    events.append(CombatEvent("execute", unit.name, target.name, 1))
 
                 if effect == "bleed":
                     dot = skill.get("dot_damage", 3)

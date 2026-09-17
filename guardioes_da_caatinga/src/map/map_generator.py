@@ -1,5 +1,6 @@
 from collections import deque
 from src.state import NodeType
+from config import ELITE_SPAWN_CHANCE, ELITE_MIN_FLOOR
 import random
 
 
@@ -114,6 +115,7 @@ class MapGenerator:
                     self.nodes[target_id].parents.append(nid)
 
         self._recompute_available()
+        self._insert_elite_nodes()
         self._insert_rescue_nodes()
         return self.nodes
 
@@ -152,18 +154,25 @@ class MapGenerator:
                 node.available = False
                 node.blocked = True
 
+    def _insert_elite_nodes(self):
+        eligible = [n for n in self.nodes.values()
+                    if n.node_type == NodeType.COMBAT
+                    and n.floor >= ELITE_MIN_FLOOR]
+        max_conversions = max(1, len(eligible) * 3 // 5)
+        to_replace = [n for n in eligible if random.random() < ELITE_SPAWN_CHANCE]
+        to_replace = random.sample(to_replace, min(len(to_replace), max_conversions))
+        for node in to_replace:
+            node.node_type = NodeType.ELITE
+
     def _insert_rescue_nodes(self):
         eligible = [n for n in self.nodes.values()
                     if n.node_type in (NodeType.COMBAT, NodeType.EVENT)
                     and n.node_type not in (NodeType.BOSS, NodeType.ELITE)]
         count = max(1, int(len(eligible) * random.uniform(0.05, 0.10)))
         count = min(count, len(eligible))
-        print(f"[MAPA] Nos elegiveis para Encontrar Animal: {len(eligible)}")
-        print(f"[MAPA] Chance aplicada: {count} nos serao convertidos")
         to_replace = random.sample(eligible, count)
         for node in to_replace:
             node.node_type = NodeType.RESCUE_ANIMAL
-            print(f"[MAPA] No Encontrar Animal gerado no floor {node.floor}, posicao {node.position} (id={node.node_id})")
 
     def _get_reachable_from(self, start_id):
         reachable = set()

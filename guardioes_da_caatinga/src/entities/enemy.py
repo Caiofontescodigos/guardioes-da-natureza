@@ -18,6 +18,7 @@ class Enemy(Character):
         self.gold_reward = data.get("gold_reward", 5) + (level - 1) * 2
         self.is_elite = data.get("is_elite", False)
         self.is_boss = data.get("is_boss", False)
+        self.is_enemy = True
         self.level = level
 
     def _scale_stats(self, base_stats, level):
@@ -28,8 +29,21 @@ class Enemy(Character):
             "defense": int(base_stats["defense"] * multiplier),
             "speed": int(base_stats["speed"] * (1 + (level - 1) * 0.03)),
             "crit_chance": min(40, int(base_stats["crit_chance"] * (1 + (level - 1) * 0.02))),
-            "dodge": min(35, int(base_stats["dodge"] * (1 + (level - 1) * 0.02)))
+            "dodge": 0
         }
+
+    def apply_elite_multipliers(self):
+        from config import (ELITE_HP_MULTIPLIER, ELITE_ATK_MULTIPLIER,
+                           ELITE_DEF_MULTIPLIER, ELITE_SPD_MULTIPLIER,
+                           ELITE_XP_MULTIPLIER, ELITE_GOLD_MULTIPLIER)
+        self.max_hp = int(self.max_hp * ELITE_HP_MULTIPLIER)
+        self.hp = self.max_hp
+        self.base_attack = int(self.base_attack * ELITE_ATK_MULTIPLIER)
+        self.base_defense = int(self.base_defense * ELITE_DEF_MULTIPLIER)
+        self.base_speed = int(self.base_speed * ELITE_SPD_MULTIPLIER)
+        self.xp_reward = int(self.xp_reward * ELITE_XP_MULTIPLIER)
+        self.gold_reward = int(self.gold_reward * ELITE_GOLD_MULTIPLIER)
+        self.is_elite = True
 
     def choose_action(self, allies, enemies):
         alive_allies = [e for e in enemies if e.is_alive and e != self]
@@ -74,8 +88,10 @@ def create_enemy_group(enemy_types, level, count=None, weights=None):
     return enemies
 
 def create_elite_enemy(enemy_types, level):
-    available = [t for t in enemy_types]
-    return create_enemy(random.choice(available), level)
+    elite = create_enemy(random.choice(enemy_types), level)
+    elite.apply_elite_multipliers()
+    guard = create_random_enemy(enemy_types, max(1, level - 2))
+    return [elite, guard]
 
 def create_boss(biome_id, level):
     from config import load_biomes

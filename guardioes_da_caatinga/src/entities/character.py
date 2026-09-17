@@ -32,7 +32,13 @@ class Character:
         self.xp = 0
         self.xp_to_level = 50
         self.gold = 0
+        self.damage_reduction = 0
+        self.regen_per_turn = 0
+        self.cooldown_reduction = 0
+        self.execute_bonus = 0
+        self.crit_damage_boost = 0
         self.is_alive = True
+        self.is_enemy = False
 
     @property
     def attack(self):
@@ -85,7 +91,7 @@ class Character:
 
     @property
     def reduce_damage(self):
-        val = 0
+        val = self.damage_reduction
         for b in self.buffs:
             if b.effect_type == BuffType.REDUCE_DAMAGE:
                 val += b.value
@@ -129,7 +135,7 @@ class Character:
 
     def take_damage(self, raw_damage):
         import random
-        if random.randint(1, 100) <= self.dodge_chance:
+        if not self.is_enemy and random.randint(1, 100) <= self.dodge_chance:
             return 0, True
 
         actual_damage = max(1, raw_damage - self.defense - self.reduce_damage)
@@ -186,6 +192,9 @@ class Character:
         if regen > 0:
             self.heal(regen)
 
+        if self.regen_per_turn > 0:
+            self.heal(self.regen_per_turn)
+
     def reduce_cooldowns(self):
         for skill_id in self.cooldowns:
             if self.cooldowns[skill_id] > 0:
@@ -200,8 +209,8 @@ class Character:
     def get_cooldown_with_reduction(self, skill_id):
         for skill in self.skills:
             if skill["id"] == skill_id:
-                return skill.get("cooldown", 1)
-        return 1
+                return max(0, skill.get("cooldown", 1) - self.cooldown_reduction)
+        return max(0, 1 - self.cooldown_reduction)
 
     def add_xp(self, amount):
         self.xp += amount

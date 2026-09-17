@@ -32,14 +32,6 @@
             "value": 4,
             "rarity": "rare"
         },
-        "mapa_antigo": {
-            "id": "mapa_antigo",
-            "name": "Mapa Antigo",
-            "description": "Revela todos os nós do mapa atual.",
-            "effect": "reveal_map",
-            "value": 0,
-            "rarity": "rare"
-        },
         "pedra_sagrada": {
             "id": "pedra_sagrada",
             "name": "Pedra Sagrada",

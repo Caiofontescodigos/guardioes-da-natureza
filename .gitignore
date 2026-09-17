@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+*.json.bak
+guardioes_da_caatinga/saves/settings.json

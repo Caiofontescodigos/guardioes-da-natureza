@@ -11,9 +11,12 @@
                 "defense": 2,
                 "speed": 14,
                 "crit_chance": 8,
-                "dodge": 15
+                "dodge": 0
             },
-            "skills": ["jato_de_brasa", "golpe_ardente"],
+            "skills": [
+                "jato_de_brasa",
+                "golpe_ardente"
+            ],
             "xp_reward": 10,
             "gold_reward": 5,
             "region": "Caatinga",
@@ -30,9 +33,12 @@
                 "defense": 6,
                 "speed": 9,
                 "crit_chance": 10,
-                "dodge": 8
+                "dodge": 0
             },
-            "skills": ["jato_de_brasa", "golpe_ardente"],
+            "skills": [
+                "jato_de_brasa",
+                "golpe_ardente"
+            ],
             "xp_reward": 15,
             "gold_reward": 8,
             "region": "Caatinga",
@@ -49,9 +55,12 @@
                 "defense": 5,
                 "speed": 14,
                 "crit_chance": 14,
-                "dodge": 18
+                "dodge": 0
             },
-            "skills": ["emboscada", "investida_rapida"],
+            "skills": [
+                "emboscada",
+                "investida_rapida"
+            ],
             "xp_reward": 20,
             "gold_reward": 12,
             "region": "Cerrado",
@@ -68,9 +77,13 @@
                 "defense": 10,
                 "speed": 16,
                 "crit_chance": 14,
-                "dodge": 14
+                "dodge": 0
             },
-            "skills": ["olho_da_chama", "investida_rapida", "tempestade_de_fogo"],
+            "skills": [
+                "olho_da_chama",
+                "investida_rapida",
+                "tempestade_de_fogo"
+            ],
             "xp_reward": 28,
             "gold_reward": 18,
             "is_elite": true,
@@ -88,9 +101,13 @@
                 "defense": 12,
                 "speed": 11,
                 "crit_chance": 12,
-                "dodge": 10
+                "dodge": 0
             },
-            "skills": ["ordem_de_ataque", "grito_de_guerra", "golpe_fortificado"],
+            "skills": [
+                "ordem_de_ataque",
+                "grito_de_guerra",
+                "golpe_fortificado"
+            ],
             "xp_reward": 35,
             "gold_reward": 25,
             "is_elite": true,
@@ -108,9 +125,14 @@
                 "defense": 15,
                 "speed": 12,
                 "crit_chance": 18,
-                "dodge": 10
+                "dodge": 0
             },
-            "skills": ["investida_alpha", "furor_elemental", "contrachama", "golpe_fortificado"],
+            "skills": [
+                "investida_alpha",
+                "furor_elemental",
+                "contrachama",
+                "golpe_fortificado"
+            ],
             "xp_reward": 80,
             "gold_reward": 55,
             "is_boss": true,
@@ -128,9 +150,14 @@
                 "defense": 12,
                 "speed": 20,
                 "crit_chance": 16,
-                "dodge": 18
+                "dodge": 0
             },
-            "skills": ["investida_rapida", "vento_maldoso", "furor_elemental", "contrachama"],
+            "skills": [
+                "investida_rapida",
+                "vento_maldoso",
+                "furor_elemental",
+                "contrachama"
+            ],
             "xp_reward": 80,
             "gold_reward": 55,
             "is_boss": true,
@@ -139,10 +166,25 @@
         }
     },
     "bosses": {
-        "caatinga": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
-        "cerrado": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
-        "pantanal": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
-        "mata_atlantica": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
-        "amazonia": ["lobo_alfa_de_fogo", "vendaval_de_fogo"]
+        "caatinga": [
+            "lobo_alfa_de_fogo",
+            "vendaval_de_fogo"
+        ],
+        "cerrado": [
+            "lobo_alfa_de_fogo",
+            "vendaval_de_fogo"
+        ],
+        "pantanal": [
+            "lobo_alfa_de_fogo",
+            "vendaval_de_fogo"
+        ],
+        "mata_atlantica": [
+            "lobo_alfa_de_fogo",
+            "vendaval_de_fogo"
+        ],
+        "amazonia": [
+            "lobo_alfa_de_fogo",
+            "vendaval_de_fogo"
+        ]
     }
 }

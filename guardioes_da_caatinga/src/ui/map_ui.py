@@ -3,6 +3,7 @@ import time
 from config import (WHITE, BLACK, GRAY, DARK_GRAY, RED, GREEN, BLUE, YELLOW, BROWN,
                     CREAM, SCREEN_WIDTH, SCREEN_HEIGHT, NODE_COLORS, BIOME_COLORS)
 from src.ui.components import draw_text
+from src.ui.text import get_font, draw_text_block_colored, measure_block
 from src.state import NodeType
 
 NODE_TOOLTIPS = {
@@ -17,9 +18,10 @@ NODE_TOOLTIPS = {
     NodeType.ELITE: {
         "title": "Batalha Elite",
         "lines": [
-            "Inimigos mais fortes.",
-            "Ganha 2 niveis ao vencer.",
-            "Maior chance de reliquias raras."
+            "Inimigos MUITO mais fortes.",
+            "Combatentes extras na batalha.",
+            "Recompensa muito maior:",
+            "mais XP e muito mais ouro."
         ]
     },
     NodeType.EVENT: {
@@ -200,20 +202,18 @@ class MapUI:
         pygame.draw.circle(surface, WHITE if not node.blocked else (60, 60, 60),
                            pos, self.node_radius, 2)
 
+        icon = self._get_node_icon(node.node_type)
+        icon_color = WHITE
         if node.blocked:
             icon = "X"
             icon_color = (80, 80, 80)
-        else:
-            icon = self._get_node_icon(node.node_type)
-            icon_color = WHITE
 
-        font = pygame.font.Font(None, 26)
-        text = font.render(icon, True, icon_color)
+        text = get_font(26).render(icon, True, icon_color)
         text_rect = text.get_rect(center=pos)
         surface.blit(text, text_rect)
 
         if node.visited:
-            check = pygame.font.Font(None, 18).render("✓", True, GREEN)
+            check = get_font(18).render("\u2713", True, GREEN)
             surface.blit(check, (pos[0] + 14, pos[1] - 14))
 
         if self.hovered_node_id == node.node_id and node.available and not node.blocked:
@@ -267,19 +267,15 @@ class MapUI:
         if not pos:
             return
 
-        font_title = pygame.font.Font(None, 24)
-        font_body = pygame.font.Font(None, 19)
-
-        title_surface = font_title.render(tooltip_info["title"], True, YELLOW)
-        body_lines = [font_body.render(line, True, CREAM) for line in tooltip_info["lines"]]
+        items = [(tooltip_info["title"], 24, YELLOW)] + [
+            (line, 19, CREAM) for line in tooltip_info["lines"]]
 
         padding = 14
-        max_text_width = title_surface.get_width()
-        for line in body_lines:
-            max_text_width = max(max_text_width, line.get_width())
-
+        max_text_width, text_height = measure_block(items, line_spacing=6)
+        if node.node_type == NodeType.BOSS:
+            text_height += get_font(15).get_height() + 10
         width = max_text_width + padding * 2
-        height = padding * 2 + title_surface.get_height() + len(body_lines) * 22
+        height = padding * 2 + text_height
 
         tx = min(pos[0] + 35, SCREEN_WIDTH - width - 10)
         ty = max(pos[1] - height - 10, 10)
@@ -300,18 +296,11 @@ class MapUI:
                          (0, 0, width, height), 2, border_radius=8)
         surface.blit(border_surf, tooltip_rect.topleft)
 
-        text_alpha = min(255, self.tooltip_alpha)
-        title_surface.set_alpha(text_alpha)
-        surface.blit(title_surface, (tx + padding, ty + padding))
-
-        y_offset = ty + padding + title_surface.get_height() + 6
-        for line in body_lines:
-            line.set_alpha(text_alpha)
-            surface.blit(line, (tx + padding, y_offset))
-            y_offset += 22
-
+        inner = pygame.Rect(tx, ty, width, height)
         if node.node_type == NodeType.BOSS:
-            status = "Libera animal ao vencer!"
-            status_surf = font_body.render(status, True, GREEN)
-            status_surf.set_alpha(text_alpha)
-            surface.blit(status_surf, (tx + padding, y_offset + 4))
+            body_items = list(items)
+            body_items.append(("", 10, CREAM))
+            body_items.append(("Libera animal ao vencer!", 15, GREEN))
+            draw_text_block_colored(surface, body_items, inner, line_spacing=2)
+        else:
+            draw_text_block_colored(surface, items, inner, line_spacing=2)

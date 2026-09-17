@@ -1,5 +1,93 @@
 from src.entities.character import Character
-from config import load_animals, load_skills, load_items
+from config import load_animals, load_skills
+
+EVOLUTION_LEVELS = {1: 6}
+EVOLUTION_STAGE_NAMES = ["Base", "Evolucao 1"]
+
+
+def get_evolution_stage_for_level(level):
+    if level >= EVOLUTION_LEVELS[1]:
+        return 1
+    return 0
+
+
+EVOLUTION_1_BONUS = {
+    "permanent_max_hp": 15,
+    "permanent_attack": 4,
+    "permanent_defense": 4,
+    "permanent_speed": 2,
+}
+
+
+SPECIFIC_UPGRADES = {
+    "tatu_bola": {
+        "id": "carapaca_reforcada",
+        "name": "Carapaca Reforcada",
+        "icon": "\U0001f6e1\ufe0f",
+        "description": "A carapaça do tatu-bola tornou-se ainda mais resistente, "
+                       "reduzindo o dano recebido em combate.",
+        "bonuses": {
+            "permanent_defense": 5,
+            "damage_reduction": 3,
+        },
+    },
+    "lobo_guara": {
+        "id": "passos_velozes",
+        "name": "Passos Velozes",
+        "icon": "\U0001f4a8",
+        "description": "Movimentos rapidos e precisos que aumentam a velocidade "
+                       "e a capacidade de critico.",
+        "bonuses": {
+            "permanent_speed": 4,
+            "permanent_crit": 8,
+        },
+    },
+    "arara_azul": {
+        "id": "ataque_preciso",
+        "name": "Ataque Preciso",
+        "icon": "\U0001fabd",
+        "description": "Penas afiadas como laminas, aumentando o poder ofensivo "
+                       "e o dano critico.",
+        "bonuses": {
+            "permanent_attack": 6,
+            "crit_damage_boost": 20,
+        },
+    },
+    "tamandua_bandeira": {
+        "id": "defesa_natural",
+        "name": "Defesa Natural",
+        "icon": "\U0001f6e1\ufe0f",
+        "description": "Pelagem espessa como armadura natural, aumentando "
+                       "defesa e vida maxima.",
+        "bonuses": {
+            "permanent_defense": 5,
+            "permanent_max_hp": 15,
+        },
+    },
+    "capivara": {
+        "id": "vitalidade",
+        "name": "Vitalidade",
+        "icon": "\u2764\ufe0f",
+        "description": "Vigor renovado com vida maxima elevada e "
+                       "regeneracao natural.",
+        "bonuses": {
+            "permanent_max_hp": 18,
+            "regen_per_turn": 3,
+        },
+    },
+    "onca_pintada": {
+        "id": "instinto_predador",
+        "name": "Instinto Predador",
+        "icon": "\U0001f406",
+        "description": "Instinto de caça apurado, com dano critico devastador "
+                       "e golpes fatais.",
+        "bonuses": {
+            "permanent_attack": 6,
+            "crit_damage_boost": 25,
+            "execute_bonus": 3,
+        },
+    },
+}
 
 
 class Animal(Character):
@@ -18,7 +106,8 @@ class Animal(Character):
         self.execute_bonus = 0
         self.crit_damage_boost = 0
         self.cooldown_reduction = 0
-        self.equipped_item = None
+        self.evolution_stage = 0
+        self.specific_upgrade_id = None
 
     def get_skill_data(self, skill_index):
         if 0 <= skill_index < len(self.skills):
@@ -68,29 +157,37 @@ class Animal(Character):
             self.base_attack += 2
             self.base_crit_chance += 1
 
-    def equip_item(self, item_id):
-        self.equipped_item = item_id
+    def get_form_name(self):
+        index = min(self.evolution_stage, len(EVOLUTION_STAGE_NAMES) - 1)
+        return EVOLUTION_STAGE_NAMES[index]
 
-    def unequip_item(self):
-        self.equipped_item = None
+    def check_evolution(self):
+        target = get_evolution_stage_for_level(self.level)
+        reached = []
+        while self.evolution_stage < target:
+            self.evolution_stage += 1
+            self._apply_evolution_bonus(self.evolution_stage)
+            self._apply_specific_upgrade()
+            reached.append(self.evolution_stage)
+        if reached:
+            self.hp = self.max_hp
+            self.is_alive = True
+        return reached
 
-    def get_equipped_item_data(self):
-        if not self.equipped_item:
-            return None
-        items = load_items()
-        return items.get(self.equipped_item)
+    def _apply_evolution_bonus(self, stage):
+        if stage == 1:
+            for effect, value in EVOLUTION_1_BONUS.items():
+                self._apply_stat_bonus(effect, value)
 
-    def apply_item_bonuses(self):
-        item_data = self.get_equipped_item_data()
-        if not item_data:
+    def _apply_specific_upgrade(self):
+        upgrade = SPECIFIC_UPGRADES.get(self.animal_id)
+        if not upgrade:
             return
-        effect = item_data.get("effect", "")
-        value = item_data.get("value", 0)
-        self._apply_stat_bonus(effect, value)
-        effect2 = item_data.get("effect2")
-        value2 = item_data.get("value2", 0)
-        if effect2:
-            self._apply_stat_bonus(effect2, value2)
+        if self.specific_upgrade_id:
+            return
+        self.specific_upgrade_id = upgrade["id"]
+        for effect, value in upgrade["bonuses"].items():
+            self._apply_stat_bonus(effect, value)
 
     def _apply_stat_bonus(self, effect, value):
         if effect == "permanent_attack":
@@ -114,6 +211,8 @@ class Animal(Character):
             self.execute_bonus += value
         elif effect == "crit_damage_boost":
             self.crit_damage_boost += value
+        elif effect == "cooldown_reduction":
+            self.cooldown_reduction += value
 
     def apply_permanent_upgrade(self, effect, value):
         self._apply_stat_bonus(effect, value)
@@ -124,6 +223,14 @@ class Animal(Character):
                 return max(0, s["cooldown"] - self.cooldown_reduction)
         return 0
 
+    def get_specific_upgrade_data(self):
+        if not self.specific_upgrade_id:
+            return None
+        for upgrade in SPECIFIC_UPGRADES.values():
+            if upgrade["id"] == self.specific_upgrade_id:
+                return upgrade
+        return None
+
     def to_dict(self):
         return {
             "animal_id": self.animal_id,
@@ -131,7 +238,8 @@ class Animal(Character):
             "xp": self.xp,
             "xp_to_level": self.xp_to_level,
             "unlocked": self.unlocked,
-            "equipped_item": self.equipped_item
+            "evolution_stage": self.evolution_stage,
+            "specific_upgrade_id": self.specific_upgrade_id,
         }
 
     @classmethod
@@ -141,5 +249,85 @@ class Animal(Character):
         animal.xp = data.get("xp", 0)
         animal.xp_to_level = data.get("xp_to_level", 50)
         animal.unlocked = data.get("unlocked", False)
-        animal.equipped_item = data.get("equipped_item", None)
+        animal.evolution_stage = data.get("evolution_stage", 0)
+        animal.specific_upgrade_id = data.get("specific_upgrade_id")
         return animal
+
+
+STAT_BONUS_KEYS = {
+    "permanent_attack": "base_attack",
+    "permanent_defense": "base_defense",
+    "permanent_speed": "base_speed",
+    "permanent_crit": "base_crit_chance",
+    "permanent_dodge": "base_dodge",
+    "permanent_max_hp": "max_hp",
+    "regen_per_turn": "regen_per_turn",
+    "damage_reduction": "damage_reduction",
+    "execute_bonus": "execute_bonus",
+    "crit_damage_boost": "crit_damage_boost",
+    "cooldown_reduction": "cooldown_reduction",
+}
+
+STAT_BONUS_DEFAULTS = {
+    "base_attack": 10,
+    "base_defense": 10,
+    "base_speed": 10,
+    "base_crit_chance": 5,
+    "base_dodge": 5,
+    "max_hp": 50,
+    "regen_per_turn": 0,
+    "damage_reduction": 0,
+    "execute_bonus": 0,
+    "crit_damage_boost": 0,
+    "cooldown_reduction": 0,
+}
+
+
+def apply_stat_bonus_to_dict(entry, effect, value):
+    key = STAT_BONUS_KEYS.get(effect)
+    if key is None:
+        return
+    entry[key] = entry.get(key, STAT_BONUS_DEFAULTS.get(key, 0)) + value
+    if effect == "permanent_max_hp" and entry.get("hp", 0) > 0:
+        entry["hp"] = entry["hp"] + value
+
+
+def apply_evolution_1_to_dict(entry):
+    for effect, value in EVOLUTION_1_BONUS.items():
+        apply_stat_bonus_to_dict(entry, effect, value)
+
+
+def apply_specific_upgrade_to_dict(animal_id, entry):
+    upgrade = SPECIFIC_UPGRADES.get(animal_id)
+    if not upgrade:
+        return
+    entry["specific_upgrade_id"] = upgrade["id"]
+    for effect, value in upgrade["bonuses"].items():
+        apply_stat_bonus_to_dict(entry, effect, value)
+
+
+EVOLUTION_1_STAT_LABELS = {
+    "permanent_max_hp": "HP",
+    "permanent_attack": "ATK",
+    "permanent_defense": "DEF",
+    "permanent_speed": "SPD",
+    "permanent_crit": "Crit",
+    "permanent_dodge": "Esquiva",
+    "regen_per_turn": "Regen/turno",
+    "damage_reduction": "Res. dano",
+    "execute_bonus": "Execucao",
+    "crit_damage_boost": "Dano critico",
+    "cooldown_reduction": "Recarga",
+}
+
+
+def get_evolution_1_details(animal_id):
+    """Return the stat deltas and specific upgrade granted by evolution 1."""
+    deltas = {}
+    for effect, value in EVOLUTION_1_BONUS.items():
+        deltas[effect] = deltas.get(effect, 0) + value
+    upgrade = SPECIFIC_UPGRADES.get(animal_id)
+    if upgrade:
+        for effect, value in upgrade["bonuses"].items():
+            deltas[effect] = deltas.get(effect, 0) + value
+    return {"deltas": deltas, "upgrade": upgrade}
