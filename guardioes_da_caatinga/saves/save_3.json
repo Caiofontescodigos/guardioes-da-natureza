@@ -1,5 +1,5 @@
 {
-    "version": "3.1",
+    "version": "3.2",
     "unlocked_animals": [
         "tatu_bola"
     ],
@@ -53,7 +53,16 @@
     "settings": {
         "music_volume": 0.7,
         "sfx_volume": 0.8,
-        "fullscreen": false
+        "fullscreen": false,
+        "window_size": [
+            1280,
+            720
+        ],
+        "music_muted": false,
+        "combat_speed": 1,
+        "show_damage_numbers": true,
+        "show_combat_log": true,
+        "confirm_quit": true
     },
     "run": {
         "current_biome": "caatinga",
@@ -532,5 +541,5 @@
     },
     "run_active": true,
     "play_time": 179.56450247764587,
-    "last_save_time": 1789654925.1613588
+    "last_save_time": 1793203623.9562352
 }
