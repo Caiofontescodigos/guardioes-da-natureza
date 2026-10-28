@@ -2,6 +2,7 @@ from enum import Enum, auto
 
 class GameState(Enum):
     MAIN_MENU = auto()
+    HOW_TO_PLAY = auto()
     ANIMAL_SELECT = auto()
     BIOME_SELECT = auto()
     MAP = auto()

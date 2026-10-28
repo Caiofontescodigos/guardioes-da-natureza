@@ -26,6 +26,7 @@ ENEMY_SPRITE_MAP = {
 
 BACKGROUND_MAP = {
     "main_menu": "Telainicial.jpeg",
+    "how_to_play": "Telainicial.jpeg",
     "animal_select": "Telainicial.jpeg",
     "biome_select": "Telainicial.jpeg",
     "settings": "Telainicial.jpeg",

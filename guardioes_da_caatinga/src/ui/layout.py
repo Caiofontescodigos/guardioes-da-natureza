@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import pygame
 from config import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.ui.text import draw_text as _draw_text, draw_button_text
@@ -126,6 +128,96 @@ class UILayout:
             x = CENTER_X - w // 2
             rects.append(pygame.Rect(x, y, w, h))
         return rects
+
+
+@dataclass(frozen=True)
+class ButtonMetrics:
+    """Medidas responsivas de um tipo de botao."""
+    width: int
+    height: int
+    font_size: int
+    gap: int = 0
+
+
+# Cada preset guarda (proporcao, minimo, maximo). As proporcoes sao aplicadas
+# sobre o canvas virtual e os limites evitam botoes ilegiveis ou gigantes.
+_BUTTON_PRESETS = {
+    "menu": {
+        "width": (0.300, 360, 460),
+        "height": (0.086, 56, 72),
+        "font": (0.039, 24, 32),
+        "gap": (0.018, 10, 18),
+    },
+    "nav": {
+        "width": (0.130, 150, 200),
+        "height": (0.072, 46, 58),
+        "font": (0.033, 22, 28),
+        "gap": (0.0, 0, 0),
+    },
+    "tab": {
+        "width": (0.203, 220, 300),
+        "height": (0.064, 40, 54),
+        "font": (0.031, 20, 26),
+        "gap": (0.017, 8, 16),
+    },
+    "toggle": {
+        "width": (0.280, 320, 420),
+        "height": (0.086, 56, 72),
+        "font": (0.036, 24, 30),
+        "gap": (0.0, 0, 0),
+    },
+}
+
+
+def ui_scale():
+    """Fator de escala do canvas virtual em relacao ao projeto base 1280x720."""
+    return min(SCREEN_WIDTH / 1280.0, SCREEN_HEIGHT / 720.0)
+
+
+def get_button_metrics(kind="menu"):
+    """Retorna as medidas proporcionais de um tipo de botao."""
+    spec = _BUTTON_PRESETS.get(kind, _BUTTON_PRESETS["menu"])
+    scale = ui_scale()
+
+    def _dim(key, base):
+        ratio, low, high = spec[key]
+        return int(round(max(low, min(high, base * ratio * scale))))
+
+    return ButtonMetrics(
+        width=_dim("width", SCREEN_WIDTH),
+        height=_dim("height", SCREEN_HEIGHT),
+        font_size=_dim("font", SCREEN_HEIGHT),
+        gap=_dim("gap", SCREEN_HEIGHT),
+    )
+
+
+def make_centered_column(count, metrics=None, center_y=None, offset_y=0):
+    """Cria uma coluna centralizada de ``count`` botoes."""
+    m = metrics or get_button_metrics()
+    total_h = count * m.height + max(0, count - 1) * m.gap
+    start_y = (center_y if center_y is not None else CENTER_Y) - total_h // 2 + offset_y
+    x = CENTER_X - m.width // 2
+    return [
+        pygame.Rect(x, start_y + i * (m.height + m.gap), m.width, m.height)
+        for i in range(count)
+    ]
+
+
+def make_centered_tabs(count, metrics=None, y=0):
+    """Cria uma linha centralizada de abas."""
+    m = metrics or get_button_metrics("tab")
+    total_w = count * m.width + max(0, count - 1) * m.gap
+    start_x = CENTER_X - total_w // 2
+    return [
+        pygame.Rect(start_x + i * (m.width + m.gap), y, m.width, m.height)
+        for i in range(count)
+    ]
+
+
+def make_back_button(metrics=None, margin=18, x=SAFE_MARGIN):
+    """Cria o botao Voltar no canto inferior esquerdo, com margem segura."""
+    m = metrics or get_button_metrics("nav")
+    return pygame.Rect(x, SCREEN_HEIGHT - margin - m.height, m.width, m.height)
 
 
 def draw_sertao_panel(surface, x, y, w, h, border_color=SERTAO_BORDER, alpha=220):
