@@ -9,16 +9,45 @@ SAVE_DIR = os.path.join(BASE_DIR, "saves")
 GLOBAL_SETTINGS_PATH = os.path.join(SAVE_DIR, "settings.json")
 
 
+DEFAULT_GLOBAL_SETTINGS = {
+    "fullscreen": False,
+    "window_size": [1280, 720],
+    "music_volume": 0.7,
+    "music_muted": False,
+    "sfx_volume": 0.8,
+    "combat_speed": 1,
+    "show_damage_numbers": True,
+    "show_combat_log": True,
+    "confirm_quit": True,
+}
+
+
 def load_global_settings():
+    settings = {
+        key: (list(value) if isinstance(value, list) else value)
+        for key, value in DEFAULT_GLOBAL_SETTINGS.items()
+    }
     try:
         if os.path.exists(GLOBAL_SETTINGS_PATH):
             with open(GLOBAL_SETTINGS_PATH, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if isinstance(data, dict):
-                    return data
+                    settings.update(data)
     except Exception:
         pass
-    return {"fullscreen": False, "music_volume": 0.7, "sfx_volume": 0.8}
+    window_size = settings.get("window_size")
+    if not (isinstance(window_size, (list, tuple)) and len(window_size) == 2
+            and all(isinstance(v, (int, float)) for v in window_size)):
+        settings["window_size"] = list(DEFAULT_GLOBAL_SETTINGS["window_size"])
+    else:
+        settings["window_size"] = [int(window_size[0]), int(window_size[1])]
+    try:
+        settings["music_volume"] = max(0.0, min(1.0, float(settings["music_volume"])))
+    except (TypeError, ValueError):
+        settings["music_volume"] = DEFAULT_GLOBAL_SETTINGS["music_volume"]
+    if settings.get("combat_speed") not in (1, 2, 3):
+        settings["combat_speed"] = DEFAULT_GLOBAL_SETTINGS["combat_speed"]
+    return settings
 
 
 def save_global_settings(settings):

@@ -1,10 +1,12 @@
 import json
 import os
 import time
-from config import BASE_DIR, SAVE_DIR as CONFIG_SAVE_DIR
+from copy import deepcopy
+
+from config import BASE_DIR, SAVE_DIR as CONFIG_SAVE_DIR, DEFAULT_GLOBAL_SETTINGS
 
 MAX_SLOTS = 3
-SAVE_VERSION = "3.1"
+SAVE_VERSION = "3.2"
 
 SAVE_DIR = CONFIG_SAVE_DIR
 
@@ -93,11 +95,7 @@ class SaveManager:
                 "animals_rescued": 0,
                 "bosses_defeated": 0,
             },
-            "settings": {
-                "music_volume": 0.7,
-                "sfx_volume": 0.8,
-                "fullscreen": False,
-            },
+            "settings": deepcopy(DEFAULT_GLOBAL_SETTINGS),
             "run": None,
             "run_active": False,
             "play_time": 0,
@@ -115,7 +113,10 @@ class SaveManager:
             if key not in data:
                 data[key] = value
         if "settings" not in data or not isinstance(data["settings"], dict):
-            data["settings"] = defaults["settings"].copy()
+            data["settings"] = deepcopy(defaults["settings"])
+        else:
+            for key, value in defaults["settings"].items():
+                data["settings"].setdefault(key, deepcopy(value))
         if "statistics" not in data or not isinstance(data["statistics"], dict):
             data["statistics"] = defaults["statistics"].copy()
         if "animal_data" not in data or not isinstance(data["animal_data"], dict):

@@ -14,6 +14,7 @@ class MusicManager:
     def __init__(self, music_dir, volume=0.7):
         self.music_dir = music_dir
         self.volume = volume
+        self.muted = False
         self._mixer_ok = False
         self.enabled = True
 
@@ -43,7 +44,7 @@ class MusicManager:
             if not pygame.mixer.get_init():
                 pygame.mixer.init()
             self._mixer_ok = True
-            pygame.mixer.music.set_volume(self.volume)
+            self._apply_volume()
             pygame.mixer.music.set_endevent(self._music_end_event)
             print("[MUSIC] mixer iniciado")
         except Exception as e:
@@ -151,10 +152,18 @@ class MusicManager:
         if event.type == self._music_end_event and self.is_playlist_mode:
             self._advance_playlist()
 
+    def _apply_volume(self):
+        if not self._mixer_ok:
+            return
+        try:
+            pygame.mixer.music.set_volume(0.0 if self.muted else self.volume)
+        except Exception:
+            pass
+
     def set_volume(self, volume):
         self.volume = max(0.0, min(1.0, volume))
-        if self._mixer_ok:
-            try:
-                pygame.mixer.music.set_volume(self.volume)
-            except Exception:
-                pass
+        self._apply_volume()
+
+    def set_muted(self, muted):
+        self.muted = bool(muted)
+        self._apply_volume()

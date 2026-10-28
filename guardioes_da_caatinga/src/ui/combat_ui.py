@@ -32,13 +32,19 @@ class FloatingText:
 
 
 class CombatUI:
-    def __init__(self, combat_system):
+    def __init__(self, combat_system, speed=1, show_damage_numbers=True,
+                 show_combat_log=True):
         self.combat = combat_system
         self.floating_texts = []
         self.step_timer = 0
         self.step_delay = 20
-        self.combat_speed = 1
+        self.combat_speed = max(1, min(3, int(speed)))
+        self.show_damage_numbers = bool(show_damage_numbers)
+        self.show_combat_log = bool(show_combat_log)
         self.finished = False
+
+    def set_speed(self, speed):
+        self.combat_speed = max(1, min(3, int(speed)))
 
     def reset(self):
         self.floating_texts = []
@@ -49,7 +55,7 @@ class CombatUI:
         self.floating_texts = [ft for ft in self.floating_texts if ft.update()]
 
         if not self.combat.combat_ended and not self.finished:
-            self.step_timer += 1
+            self.step_timer += self.combat_speed
             if self.step_timer >= self.step_delay:
                 self.step_timer = 0
                 events = self.combat.step_combat()
@@ -58,6 +64,8 @@ class CombatUI:
                     self.finished = True
 
     def _process_events(self, events):
+        if not self.show_damage_numbers:
+            return
         for evt in events:
             target_pos = self._get_unit_center(evt.target_name)
             if not target_pos:
@@ -106,8 +114,10 @@ class CombatUI:
         self._draw_turn_bar(surface)
         self._draw_party(surface, assets)
         self._draw_enemies(surface, assets)
-        self._draw_combat_log(surface)
-        self._draw_floating_texts(surface)
+        if self.show_combat_log:
+            self._draw_combat_log(surface)
+        if self.show_damage_numbers:
+            self._draw_floating_texts(surface)
         self._draw_controls(surface)
 
     def _draw_turn_bar(self, surface):
