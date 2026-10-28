@@ -13,7 +13,8 @@ from config import (SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE, BLACK, GRAY, RED, G
                     BLUE, YELLOW, BROWN, CREAM, DARK_GRAY, ORANGE, PURPLE,
                     DARK_BROWN, GOLD, load_biomes, load_animals, load_events,
                     load_global_settings, save_global_settings,
-                    IMAGES_DIR, MUSIC_DIR)
+                    DEFAULT_GLOBAL_SETTINGS, IMAGES_DIR, MUSIC_DIR)
+import copy
 import random
 import pygame
 import sys
@@ -111,6 +112,7 @@ class Game:
         pygame.init()
         self.global_settings = load_global_settings()
         self.fullscreen = self.global_settings.get("fullscreen", False)
+        self.window_size = list(self.global_settings.get("window_size", [1280, 720]))
         self.base_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.screen = self.base_surface
         self._apply_display_mode(self.fullscreen)
@@ -135,6 +137,7 @@ class Game:
         self.assets = AssetManager(IMAGES_DIR)
         self.music_manager = MusicManager(MUSIC_DIR)
         self.music_manager.set_volume(self.global_settings.get("music_volume", 0.7))
+        self.music_manager.set_muted(self.global_settings.get("music_muted", False))
 
         self.party = []
         self.current_biome = None
@@ -184,6 +187,15 @@ class Game:
 
         self._run_start_time = 0
 
+        from src.ui.controls import ConfirmDialog
+        self.quit_dialog = ConfirmDialog(
+            title="Sair do jogo",
+            message="Deseja realmente sair? O progresso salvo sera mantido.",
+            confirm_label="SAIR",
+            cancel_label="CANCELAR",
+            confirm_color=(150, 50, 40),
+        )
+
         self.setup_screens()
 
     def _apply_display_mode(self, fullscreen):
@@ -195,11 +207,23 @@ class Game:
                 print(f"[Game] Tela cheia indisponivel, usando janela: {e}")
                 self.fullscreen = False
                 self.actual_screen = pygame.display.set_mode(
-                    (SCREEN_WIDTH, SCREEN_HEIGHT))
+                    tuple(self._clamped_window_size()))
         else:
             self.actual_screen = pygame.display.set_mode(
-                (SCREEN_WIDTH, SCREEN_HEIGHT))
+                tuple(self._clamped_window_size()))
         self._compute_scaling()
+
+    def _clamped_window_size(self):
+        width, height = self.window_size
+        try:
+            desktops = pygame.display.get_desktop_sizes()
+            if desktops:
+                desk_w, desk_h = desktops[0]
+                width = min(width, desk_w)
+                height = min(height, desk_h)
+        except (pygame.error, AttributeError):
+            pass
+        return [max(640, width), max(480, height)]
 
     def _compute_scaling(self):
         win_w, win_h = self.actual_screen.get_size()
@@ -213,17 +237,77 @@ class Game:
         update_mouse_transform(self.scale, self.scaled_offset_x, self.scaled_offset_y)
 
     def toggle_fullscreen(self):
-        self.fullscreen = not self.fullscreen
-        self._apply_display_mode(self.fullscreen)
-        self.global_settings["fullscreen"] = self.fullscreen
-        if self.save_data:
-            if "settings" not in self.save_data:
-                self.save_data["settings"] = {}
-            self.save_data["settings"]["fullscreen"] = self.fullscreen
-        save_global_settings(self.global_settings)
-        if self.save_data:
-            self.save_manager.save_game(self.save_data)
+        self._apply_setting("fullscreen", not self.fullscreen)
         self._notify_save("Modo de tela alterado")
+
+    def _apply_setting(self, key, value, commit=True):
+        """Apply a settings change and persist it when requested."""
+        if key == "window_size":
+            value = list(value)
+        self.global_settings[key] = value
+
+        if key == "fullscreen":
+            self.fullscreen = bool(value)
+            self._apply_display_mode(self.fullscreen)
+            value = self.fullscreen
+            self.global_settings[key] = value
+        elif key == "window_size":
+            self.window_size = list(value)
+            if not self.fullscreen:
+                self._apply_display_mode(False)
+        elif key == "music_volume":
+            self.music_manager.set_volume(float(value))
+        elif key == "music_muted":
+            self.music_manager.set_muted(bool(value))
+
+        if self.save_data is not None:
+            self.save_data.setdefault("settings", {})[key] = value
+
+        if not commit:
+            return
+
+        save_global_settings(self.global_settings)
+        if self.save_data is not None:
+            self.save_manager.save_game(self.save_data)
+        self.settings_screen.sync(self.global_settings)
+
+    def _reset_settings(self):
+        """Restore every setting to its factory default."""
+        defaults = copy.deepcopy(DEFAULT_GLOBAL_SETTINGS)
+        self.global_settings = defaults
+        self.fullscreen = defaults["fullscreen"]
+        self.window_size = list(defaults["window_size"])
+        self._apply_display_mode(self.fullscreen)
+        self.music_manager.set_volume(defaults["music_volume"])
+        self.music_manager.set_muted(defaults["music_muted"])
+
+        if self.save_data is not None:
+            self.save_data["settings"] = copy.deepcopy(defaults)
+
+        save_global_settings(self.global_settings)
+        if self.save_data is not None:
+            self.save_manager.save_game(self.save_data)
+        self.settings_screen.sync(self.global_settings)
+        self._notify_save("Configuracoes restauradas")
+
+    def _request_quit(self):
+        if not self.global_settings.get("confirm_quit", True):
+            self._quit_game()
+            return
+        self.quit_dialog.open(action="quit")
+
+    def _handle_quit_dialog(self, event):
+        result = self.quit_dialog.handle_event(event)
+        if result == "confirm":
+            action = self.quit_dialog.action
+            self.quit_dialog.close()
+            if action == "quit":
+                self._quit_game()
+            return True
+        if result == "cancel":
+            self.quit_dialog.close()
+            return True
+        return True
 
     def _on_save_status(self, phase, success=True, message=None):
         if phase == "saving":
@@ -342,18 +426,20 @@ class Game:
 
     def setup_screens(self):
         from src.ui.menu import (MainMenu, AnimalSelectScreen, BiomeSelectScreen,
-                                  SettingsScreen, BestiaryScreen, AcampamentoScreen,
+                                  BestiaryScreen, AcampamentoScreen,
                                   JourneySelectScreen)
+        from src.ui.settings_screen import SettingsScreen
+        from src.ui.how_to_play import HowToPlayScreen
         self.main_menu = MainMenu(self.assets)
         unlocked = self.save_data.get("unlocked_animals", ["tatu_bola"]) if self.save_data else ["tatu_bola"]
         biomes = self.save_data.get("unlocked_biomes", ["caatinga"]) if self.save_data else ["caatinga"]
         self.animal_select = AnimalSelectScreen(unlocked, self.assets, self.save_data or {})
         self.biome_select = BiomeSelectScreen(biomes, self.assets)
-        self.settings_screen = SettingsScreen(self.assets)
-        self.settings_screen.set_fullscreen(self.fullscreen)
+        self.settings_screen = SettingsScreen(self.assets, self.global_settings)
         self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets)
         self.acampamento_screen = AcampamentoScreen(self.save_data or {}, self.assets, self.party)
         self.journey_select_screen = JourneySelectScreen(self.save_manager, self.assets)
+        self.how_to_play_screen = HowToPlayScreen(self.assets)
         self.cage_reward_screen = None
 
     def _save_run_state(self):
@@ -402,12 +488,9 @@ class Game:
         while self.running:
             events = pygame.event.get()
             for event in events:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                if (event.type == pygame.KEYDOWN and event.key == pygame.K_F11
+                        and not self.quit_dialog.visible):
                     self.toggle_fullscreen()
-                if event.type == pygame.QUIT:
-                    self._save_permanent_data()
-                    self.running = False
-                    return
                 self.music_manager.update(event)
             self.handle_events_clone(events)
             self._save_status_update()
@@ -428,7 +511,12 @@ class Game:
             self.handle_event_single(event)
 
     def handle_event_single(self, event):
+        if self.quit_dialog.visible:
+            self._handle_quit_dialog(event)
+            return
+
         if event.type == pygame.QUIT:
+            self._request_quit()
             return
 
         if self.state == GameState.MAIN_MENU:
@@ -436,11 +524,12 @@ class Game:
             result = self.main_menu.handle_event(event)
             if result is not None:
                 actions = {
-                    0: self._open_journey_select,
-                    1: self._open_bestiary,
-                    2: self._open_acampamento,
-                    3: lambda: setattr(self, 'state', GameState.SETTINGS),
-                    4: self._quit_game,
+                    "play": self._open_journey_select,
+                    "how_to_play": self._open_how_to_play,
+                    "bestiary": self._open_bestiary,
+                    "acampamento": self._open_acampamento,
+                    "settings": self._open_settings,
+                    "quit": self._quit_game,
                 }
                 if result in actions:
                     actions[result]()
@@ -493,11 +582,13 @@ class Game:
 
         elif self.state == GameState.SETTINGS:
             result = self.settings_screen.handle_event(event)
-            if isinstance(result, tuple) and result[0] == "toggle_fullscreen":
-                self.toggle_fullscreen()
-                self.settings_screen.set_fullscreen(self.fullscreen)
-            elif result is True:
-                self.state = GameState.MAIN_MENU
+            if isinstance(result, tuple) and result[0] == "setting":
+                self._apply_setting(result[1], result[2], result[3])
+            elif isinstance(result, tuple) and result[0] == "action":
+                if result[1] == "back":
+                    self.state = GameState.MAIN_MENU
+                elif result[1] == "reset_defaults":
+                    self._reset_settings()
 
         elif self.state == GameState.ACAMPAMENTO:
             self.handle_acampamento_events(event)
@@ -505,6 +596,12 @@ class Game:
         elif self.state == GameState.BESTIARY:
             if self.bestiary_screen:
                 result = self.bestiary_screen.handle_event(event)
+                if result == "back":
+                    self.state = GameState.MAIN_MENU
+
+        elif self.state == GameState.HOW_TO_PLAY:
+            if self.how_to_play_screen:
+                result = self.how_to_play_screen.handle_event(event)
                 if result == "back":
                     self.state = GameState.MAIN_MENU
 
@@ -620,6 +717,13 @@ class Game:
         from src.ui.menu import BestiaryScreen
         self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets)
         self.state = GameState.BESTIARY
+
+    def _open_settings(self):
+        self.settings_screen.sync(self.global_settings)
+        self.state = GameState.SETTINGS
+
+    def _open_how_to_play(self):
+        self.state = GameState.HOW_TO_PLAY
 
     def _open_journey_select(self):
         from src.ui.menu import JourneySelectScreen
@@ -818,7 +922,12 @@ class Game:
 
         self.combat_system = CombatSystem(alive_party, enemies)
         self.combat_system.start_combat()
-        self.combat_ui = CombatUI(self.combat_system)
+        self.combat_ui = CombatUI(
+            self.combat_system,
+            speed=self.global_settings.get("combat_speed", 1),
+            show_damage_numbers=self.global_settings.get("show_damage_numbers", True),
+            show_combat_log=self.global_settings.get("show_combat_log", True),
+        )
         if is_boss:
             self.music_manager.play_boss()
         self.state = GameState.COMBAT
@@ -1483,6 +1592,7 @@ class Game:
             GameState.SETTINGS: lambda: self.settings_screen.draw(self.screen),
             GameState.ACAMPAMENTO: lambda: self.acampamento_screen.draw(self.screen) if self.acampamento_screen else None,
             GameState.BESTIARY: lambda: self.bestiary_screen.draw(self.screen) if self.bestiary_screen else None,
+            GameState.HOW_TO_PLAY: lambda: self.how_to_play_screen.draw(self.screen) if self.how_to_play_screen else None,
             GameState.CAGE_REWARD: lambda: self.cage_reward_screen.draw(self.screen) if self.cage_reward_screen else None,
             GameState.MAP: self._render_map,
             GameState.COMBAT: self._render_combat,
@@ -1503,6 +1613,8 @@ class Game:
         renderer = renderers.get(self.state)
         if renderer:
             renderer()
+        if self.quit_dialog.visible:
+            self.quit_dialog.draw(self.screen)
         self._draw_save_status()
         self._blit_scaled()
         pygame.display.flip()

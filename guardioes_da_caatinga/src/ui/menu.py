@@ -7,7 +7,8 @@ from src.ui.layout import (UILayout, LayoutArea, draw_sertao_panel, draw_sertao_
                            draw_text, CENTER_X, CENTER_Y, SAFE_MARGIN,
                            SERTAO_DARK, SERTAO_PANEL, SERTAO_BORDER, SERTAO_LIGHT,
                            SERTAO_CREAM, SERTAO_GOLD, SERTAO_RED, SERTAO_GREEN,
-                           get_mouse_pos)
+                           get_mouse_pos, get_button_metrics, make_centered_column,
+                           make_centered_tabs, make_back_button)
 from src.ui.text import (get_font, wrap_text_chars, wrap_text, draw_text_centered,
                          draw_text_block_colored)
 
@@ -34,6 +35,15 @@ RARITY_COLORS = {"Comum": GRAY, "Raro": BLUE, "\u00c9pico": PURPLE, "Lend\u00e1r
 
 
 class MainMenu:
+    ENTRIES = [
+        ("JOGAR", "play"),
+        ("COMO JOGAR", "how_to_play"),
+        ("BESTIARIO", "bestiary"),
+        ("ACAMPAMENTO", "acampamento"),
+        ("CONFIGURACOES", "settings"),
+        ("SAIR", "quit"),
+    ]
+
     def __init__(self, assets=None):
         self.assets = assets
         self.hover_index = -1
@@ -41,18 +51,14 @@ class MainMenu:
         self._build()
 
     def _build(self):
-        labels = ["JOGAR", "BESTIARIO", "ACAMPAMENTO", "CONFIGURACOES", "SAIR"]
-        btn_w, btn_h = 320, 52
-        spacing = 12
-        count = len(labels)
-        total_h = count * btn_h + (count - 1) * spacing
-        start_y = self.layout.body.center_y - total_h // 2 + 20
-
-        self.buttons = []
-        for i, label in enumerate(labels):
-            x = CENTER_X - btn_w // 2
-            y = start_y + i * (btn_h + spacing)
-            self.buttons.append({"rect": pygame.Rect(x, y, btn_w, btn_h), "label": label})
+        self.metrics = get_button_metrics("menu")
+        rects = make_centered_column(
+            len(self.ENTRIES), self.metrics,
+            center_y=self.layout.body.center_y, offset_y=20)
+        self.buttons = [
+            {"rect": rect, "label": label, "action": action}
+            for rect, (label, action) in zip(rects, self.ENTRIES)
+        ]
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -62,9 +68,9 @@ class MainMenu:
                     self.hover_index = i
                     break
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for i, b in enumerate(self.buttons):
+            for b in self.buttons:
                 if b["rect"].collidepoint(event.pos):
-                    return i
+                    return b["action"]
         return None
 
     def draw(self, surface):
@@ -79,7 +85,8 @@ class MainMenu:
 
         for i, b in enumerate(self.buttons):
             draw_sertao_button(surface, b["rect"], b["label"],
-                               is_hovered=(self.hover_index == i))
+                               is_hovered=(self.hover_index == i),
+                               font_size=self.metrics.font_size)
 
         fv = get_font(18)
         vs = fv.render("Versao 1.0", True, GRAY)
@@ -357,9 +364,11 @@ class BestiaryScreen:
         self.selected_idx = 0
         self.hover_idx = -1
         self.layout = UILayout()
-        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 65, 140, 42)
-        self.tab_animals = pygame.Rect(CENTER_X - 260, 75, 240, 36)
-        self.tab_criaturas = pygame.Rect(CENTER_X + 20, 75, 240, 36)
+        self.tab_metrics = get_button_metrics("tab")
+        self.back_metrics = get_button_metrics("nav")
+        self.back_button = make_back_button(self.back_metrics)
+        tabs = make_centered_tabs(2, self.tab_metrics, y=75)
+        self.tab_animals, self.tab_criaturas = tabs
         self._build_grid()
 
     def _build_grid(self):
@@ -380,7 +389,7 @@ class BestiaryScreen:
 
         gap_x, gap_y = 12, 12
         start_x = SAFE_MARGIN + 20
-        start_y = self.layout.body.y + 90
+        start_y = self.layout.body.y + 120
         grid_w = cols * cell_w + (cols - 1) * gap_x
         actual_start_x = CENTER_X - grid_w // 2
 
@@ -453,9 +462,11 @@ class BestiaryScreen:
 
         is_animals = self.tab == "ANIMAIS"
         draw_sertao_button(surface, self.tab_animals, "ANIMAIS", is_hovered=is_animals,
-                           color=SERTAO_GREEN if is_animals else SERTAO_PANEL)
+                           color=SERTAO_GREEN if is_animals else SERTAO_PANEL,
+                           font_size=self.tab_metrics.font_size)
         draw_sertao_button(surface, self.tab_criaturas, "CRIATURAS", is_hovered=not is_animals,
-                           color=SERTAO_RED if not is_animals else SERTAO_PANEL)
+                           color=SERTAO_RED if not is_animals else SERTAO_PANEL,
+                           font_size=self.tab_metrics.font_size)
 
         discovered_list = (list(self.animal_seen) if is_animals else self.creatures_discovered)
         total_ids = self._get_current_ids()
@@ -464,12 +475,12 @@ class BestiaryScreen:
         pct = int((discovered / total) * 100) if total > 0 else 0
 
         draw_text(surface, f"Descobertas: {discovered} / {total}  ({pct}%)",
-                  (CENTER_X, 120), font_size=18, color=SERTAO_CREAM, center=True)
+                  (CENTER_X, 200), font_size=18, color=SERTAO_CREAM, center=True)
 
         bar_w = 360
         bar_h = 8
         bar_x = CENTER_X - bar_w // 2
-        bar_y = 142
+        bar_y = 220
         pygame.draw.rect(surface, (60, 45, 25), (bar_x, bar_y, bar_w, bar_h), border_radius=4)
         fill_w = int(bar_w * (discovered / total)) if total > 0 else 0
         bar_color = SERTAO_GREEN if is_animals else SERTAO_RED
@@ -488,14 +499,15 @@ class BestiaryScreen:
         grid_w = cols * cell_w + (cols - 1) * gap_x
         detail_x = CENTER_X + grid_w // 2 + 20
         detail_w = SCREEN_WIDTH - detail_x - SAFE_MARGIN - 10
-        detail_y = self.layout.body.y + 90
+        detail_y = self.layout.body.y + 120
         detail_h = SCREEN_HEIGHT - detail_y - 80
 
         if detail_w > 100:
             self._draw_detail_panel(surface, detail_x, detail_y, detail_w, detail_h)
 
         bh = self.back_button.collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, self.back_button, "Voltar", bh)
+        draw_sertao_button(surface, self.back_button, "Voltar", bh,
+                           font_size=self.back_metrics.font_size)
 
     def _draw_cell(self, surface, cell, index):
         r = cell["rect"]
@@ -847,16 +859,10 @@ class AcampamentoScreen:
         self._build_tabs()
 
     def _build_tabs(self):
-        tab_w, tab_h = 145, 34
-        spacing = 8
-        count = len(self.SECTIONS)
-        total = count * tab_w + (count - 1) * spacing
-        start_x = CENTER_X - total // 2
-        self.tab_rects = []
-        for i, name in enumerate(self.SECTIONS):
-            x = start_x + i * (tab_w + spacing)
-            self.tab_rects.append(pygame.Rect(x, 75, tab_w, tab_h))
-        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 65, 140, 42)
+        self.tab_metrics = get_button_metrics("tab")
+        self.back_metrics = get_button_metrics("nav")
+        self.tab_rects = make_centered_tabs(len(self.SECTIONS), self.tab_metrics, y=75)
+        self.back_button = make_back_button(self.back_metrics)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -916,7 +922,8 @@ class AcampamentoScreen:
         for i, tab in enumerate(self.tab_rects):
             is_sel = (i == self.sel_section)
             draw_sertao_button(surface, tab, self.SECTIONS[i], is_hovered=is_sel,
-                               color=SERTAO_GREEN if is_sel else SERTAO_PANEL)
+                               color=SERTAO_GREEN if is_sel else SERTAO_PANEL,
+                               font_size=self.tab_metrics.font_size)
 
         if self.sel_section == 0:
             self._draw_melhorias_section(surface)
@@ -924,7 +931,8 @@ class AcampamentoScreen:
             self._draw_equipe_section(surface)
 
         bh = self.back_button.collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, self.back_button, "Voltar", bh)
+        draw_sertao_button(surface, self.back_button, "Voltar", bh,
+                           font_size=self.back_metrics.font_size)
 
     def _draw_melhorias_section(self, surface):
         draw_text(surface, "Melhorias permanentes dos animais",
@@ -1068,67 +1076,6 @@ class BiomeSelectScreen:
             if not b["unlocked"]:
                 draw_text(surface, "Bloqueado", (r.right - 100, r.y + 28),
                           font_size=22, color=RED)
-
-        bh = self.back_button.collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, self.back_button, "Voltar", bh)
-
-
-class SettingsScreen:
-    def __init__(self, assets=None):
-        self.assets = assets
-        self.layout = UILayout()
-        self.fullscreen = False
-        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 65, 140, 42)
-        self.fs_toggle = pygame.Rect(CENTER_X - 150, 250, 300, 55)
-
-    def set_fullscreen(self, fullscreen):
-        self.fullscreen = fullscreen
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEMOTION:
-            pass
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.fs_toggle.collidepoint(event.pos):
-                return ("toggle_fullscreen", None)
-            if self.back_button.collidepoint(event.pos):
-                return True
-        return None
-
-    def draw(self, surface):
-        if self.assets:
-            self.assets.draw_background(surface, "settings")
-        else:
-            surface.fill(SERTAO_DARK)
-
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 100))
-        surface.blit(overlay, (0, 0))
-
-        draw_text(surface, "Configuracoes", (CENTER_X, 80),
-                  font_size=44, color=SERTAO_GOLD, center=True)
-
-        draw_text(surface, "Tela:", (CENTER_X - 260, 265),
-                  font_size=26, color=SERTAO_CREAM, center=True)
-
-        fs_rect = self.fs_toggle
-        is_hov = fs_rect.collidepoint(get_mouse_pos())
-        bg = (60, 50, 30) if is_hov else SERTAO_PANEL
-        border = SERTAO_GOLD if is_hov else SERTAO_BORDER
-        pygame.draw.rect(surface, bg, fs_rect, border_radius=10)
-        pygame.draw.rect(surface, border, fs_rect, 2, border_radius=10)
-
-        if self.fullscreen:
-            label = "Tela cheia"
-            color = SERTAO_GOLD
-            check = "\u2713  "
-        else:
-            label = "Janela"
-            color = SERTAO_CREAM
-            check = "\u25a1  "
-        draw_text(surface, f"{check}{label}", (CENTER_X, fs_rect.centery),
-                  font_size=24, color=color, center=True)
-        draw_text(surface, "F11 para alternar", (CENTER_X, fs_rect.bottom + 20),
-                  font_size=16, color=GRAY, center=True)
 
         bh = self.back_button.collidepoint(get_mouse_pos())
         draw_sertao_button(surface, self.back_button, "Voltar", bh)

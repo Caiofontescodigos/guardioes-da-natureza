@@ -27,8 +27,12 @@ Dependências: `pygame>=2.5.0` (ver `requirements.txt`).
   (inimigos mais fortes com recompensas maiores).
 - **Inimigos, elites e chefes** regionais com níveis escalonados.
 - **Bestiário** com descobertas de animais e criaturas.
+- **Como Jogar**: guia rápido com objetivo, mapa, combate, equipe e controles.
 - **Acampamento**: melhorias permanentes e montagem de equipe (MELHORIAS/EQUIPE).
 - **Loja do Sertão** como evento de mapa.
+- **Configurações** com tela cheia/resolução, volume e mudo da música,
+  velocidade do combate, opções visuais de dano/log, confirmação ao sair e
+  restauração dos padrões.
 - **3 slots de save** com migração automática de versões antigas (backup `.bak`).
 
 ## Sistema de evolução permanente
