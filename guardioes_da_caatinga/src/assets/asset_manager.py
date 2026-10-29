@@ -4,24 +4,24 @@ from src.ui.text import get_font
 
 
 ANIMAL_SPRITE_MAP = {
-    "tatu_bola": {"base": "TatuBola.jpeg", "evolution_1": None, "evolution_2": None},
-    "lobo_guara": {"base": "LoboGuara.jpeg", "evolution_1": None, "evolution_2": None},
-    "arara_azul": {"base": "AraraAzul.jpeg", "evolution_1": None, "evolution_2": None},
-    "tamandua_bandeira": {"base": "Tamandua.jpeg", "evolution_1": None, "evolution_2": None},
-    "capivara": {"base": "Capivara.jpeg", "evolution_1": None, "evolution_2": None},
-    "onca_pintada": {"base": "OnçaPintada.jpeg", "evolution_1": None, "evolution_2": None},
+    "tatu_bola": {"base": "TatuBola.png", "evolution_1": None, "evolution_2": None},
+    "lobo_guara": {"base": "LoboGuara.png", "evolution_1": None, "evolution_2": None},
+    "arara_azul": {"base": "AraraAzul.png", "evolution_1": None, "evolution_2": None},
+    "tamandua_bandeira": {"base": "Tamandua.png", "evolution_1": None, "evolution_2": None},
+    "capivara": {"base": "Capivara.png", "evolution_1": None, "evolution_2": None},
+    "onca_pintada": {"base": "Onça-pintada.png", "evolution_1": None, "evolution_2": None},
 }
 
 EVOLUTION_STAGE_FILES = {0: "base", 1: "evolution_1", 2: "evolution_2"}
 
 ENEMY_SPRITE_MAP = {
-    "brasa": "Brasa.jpeg",
-    "chamas": "Chamas.jpeg",
-    "espirito_de_fogo": "espiritodefogo.jpeg",
-    "furacao": "Furacao.jpeg",
-    "lobo_de_fogo": "Lobdefogo.jpeg",
-    "lobo_alfa_de_fogo": "LoboAlfaDeFogo.jpeg",
-    "vendaval_de_fogo": "VendavaldeFogo.jpeg",
+    "brasa": "Brasa.png",
+    "chamas": "Chamas.png",
+    "espirito_de_fogo": "espiritodefogo.png",
+    "furacao": "furacao.png",
+    "lobo_de_fogo": "Lobdefogo.png",
+    "lobo_alfa_de_fogo": "LoboAlfaDeFogo.png",
+    "vendaval_de_fogo": "VendavaldeFogo.png",
 }
 
 BACKGROUND_MAP = {
