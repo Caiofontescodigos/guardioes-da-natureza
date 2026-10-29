@@ -37,11 +37,11 @@ RARITY_COLORS = {"Comum": GRAY, "Raro": BLUE, "\u00c9pico": PURPLE, "Lend\u00e1r
 class MainMenu:
     ENTRIES = [
         ("JOGAR", "play"),
-        ("COMO JOGAR", "how_to_play"),
         ("BESTIARIO", "bestiary"),
-        ("CONQUISTAS", "achievements"),
         ("ACAMPAMENTO", "acampamento"),
+        ("CONQUISTAS", "achievements"),
         ("CONFIGURACOES", "settings"),
+        ("SOBRE", "how_to_play"),
         ("SAIR", "quit"),
     ]
 
@@ -56,7 +56,7 @@ class MainMenu:
         self.metrics = get_button_metrics("menu")
         rects = make_centered_column(
             len(self.ENTRIES), self.metrics,
-            center_y=self.layout.body.center_y, offset_y=20)
+            center_y=self.layout.body.center_y, offset_y=45)
         self.buttons = [
             {"rect": rect, "label": label, "action": action}
             for rect, (label, action) in zip(rects, self.ENTRIES)

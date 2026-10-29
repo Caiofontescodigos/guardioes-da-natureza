@@ -143,10 +143,10 @@ class ButtonMetrics:
 # sobre o canvas virtual e os limites evitam botoes ilegiveis ou gigantes.
 _BUTTON_PRESETS = {
     "menu": {
-        "width": (0.300, 360, 460),
-        "height": (0.086, 56, 72),
-        "font": (0.039, 24, 32),
-        "gap": (0.018, 10, 18),
+        "width": (0.225, 300, 380),
+        "height": (0.038, 44, 56),
+        "font": (0.016, 20, 26),
+        "gap": (0.007, 8, 14),
     },
     "nav": {
         "width": (0.130, 150, 200),
