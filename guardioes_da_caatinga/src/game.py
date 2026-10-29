@@ -28,6 +28,7 @@ from src.ui.text import (draw_text, draw_text_centered, draw_text_centered_in_re
                          draw_text_block_colored, draw_multiline_centered,
                          draw_fitted_text, draw_button_text,
                          wrap_text, wrap_text_chars, get_font, text_size)
+import os
 
 SERTAO_DARK = (25, 18, 10)
 SERTAO_PANEL = (45, 32, 18)
@@ -193,6 +194,10 @@ class Game:
         self.save_data = None
         self.active_slot = None
 
+        # Track where settings were opened from
+        self._settings_origin = None  # e.g. "main_menu" or "journey"
+        self._settings_prev_state = None
+
         self.save_status_message = None
         self.save_status_success = True
         self.save_status_timer = 0
@@ -251,6 +256,18 @@ class Game:
         self.swap_return_state = GameState.VICTORY
 
         self._run_start_time = 0
+        # potion icons
+        self._potion_icons = {}
+        try:
+            ui_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'ui')
+            ui_dir = os.path.normpath(ui_dir)
+            for key, fname in [('health', 'potion_health.png'), ('defense', 'potion_defense.png'), ('attack', 'potion_attack.png')]:
+                p = os.path.join(ui_dir, fname)
+                if os.path.exists(p):
+                    img = pygame.image.load(p).convert_alpha()
+                    self._potion_icons[key] = pygame.transform.scale(img, (24, 24))
+        except Exception:
+            pass
 
         from src.ui.controls import ConfirmDialog
         self.quit_dialog = ConfirmDialog(
@@ -552,7 +569,15 @@ class Game:
         self.combat_ui = None
         self.achievement_manager.set_flag("game_over_pending", True)
         self._save_permanent_data()
-        self.music_manager.stop()
+        try:
+            # If leaving journey, stop journey music and go to menu music
+            self.music_manager.stop()
+            self.music_manager.menu_mode = True
+            self.music_manager.is_playlist_mode = False
+            self.music_manager.boss_mode = False
+            self.music_manager.play_menu_music()
+        except Exception:
+            pass
         self.state = GameState.GAME_OVER
 
     def _convert_event(self, event):
@@ -598,7 +623,11 @@ class Game:
             return
 
         if self.state == GameState.MAIN_MENU:
-            self.music_manager.stop()
+            # ensure menu music plays
+            try:
+                self.music_manager.play_menu_music()
+            except Exception:
+                pass
             result = self.main_menu.handle_event(event)
             if result is not None:
                 actions = {
@@ -607,7 +636,7 @@ class Game:
                     "bestiary": self._open_bestiary,
                     "achievements": self._open_achievements,
                     "acampamento": self._open_acampamento,
-                    "settings": self._open_settings,
+                    "settings": lambda: self._open_settings("main_menu"),
                     "quit": self._quit_game,
                 }
                 if result in actions:
@@ -642,34 +671,180 @@ class Game:
             self.handle_map_events(event)
 
         elif self.state == GameState.COMBAT:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_combat_events(event)
 
         elif self.state == GameState.EVENT:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_event_screen(event)
 
         elif self.state == GameState.SHOP:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_shop_events(event)
 
         elif self.state == GameState.CAMP:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_camp_events(event)
 
         elif self.state == GameState.LEVEL_UP:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_level_up_events(event)
 
         elif self.state == GameState.RESCUE_ANIMAL:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_rescue_events(event)
 
         elif self.state == GameState.SETTINGS:
+            try:
+                if hasattr(self.settings_screen, 'set_in_journey'):
+                    origin = getattr(self, "_settings_origin", None)
+                    if origin == "journey":
+                        self.settings_screen.set_in_journey(True)
+                    else:
+                        self.settings_screen.set_in_journey(False)
+            except Exception:
+                pass
             result = self.settings_screen.handle_event(event)
             if isinstance(result, tuple) and result[0] == "setting":
                 self._apply_setting(result[1], result[2], result[3])
             elif isinstance(result, tuple) and result[0] == "action":
                 if result[1] == "back":
-                    self.state = GameState.MAIN_MENU
+                    origin = getattr(self, "_settings_origin", "main_menu")
+                    if origin == "journey" and (self.map_generator is not None or getattr(self, "_settings_prev_state", None)):
+                        prev = getattr(self, "_settings_prev_state", None)
+                        if prev is not None and prev in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
+                                                         GameState.SHOP, GameState.CAMP,
+                                                         GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                         GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
+                                                         GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
+                            self.state = prev
+                        elif self.map_generator is not None:
+                            self.state = GameState.MAP
+                        else:
+                            self.state = GameState.MAIN_MENU
+                            try:
+                                self.music_manager.play_menu_music()
+                            except Exception:
+                                pass
+                    else:
+                        self.state = GameState.MAIN_MENU
+                        try:
+                            self.music_manager.play_menu_music()
+                        except Exception:
+                            pass
+                    self._settings_origin = None
+                    self._settings_prev_state = None
                 elif result[1] == "reset_defaults":
                     self._reset_settings()
+                elif result[1] == "return_to_main_menu":
+                    if self.map_generator is not None:
+                        # show confirmation handled by settings screen dialog; also handle here
+                        pass
+                    # if dialog confirmed from settings screen, it will call action differently - but our dialog returns action
+                elif result[1] == "return_to_main_menu_confirm":
+                    self._end_journey_to_main_menu()
+                elif result[1] == "return_to_main_menu_cancel":
+                    pass
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                # toggle off if coming from journey? requirement says ESC again closes settings and returns to journey
+                origin = getattr(self, "_settings_origin", "main_menu")
+                if origin == "journey":
+                    prev = getattr(self, "_settings_prev_state", None)
+                    if prev is not None and prev in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
+                                                     GameState.SHOP, GameState.CAMP,
+                                                     GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                     GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
+                                                     GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
+                        self.state = prev
+                    elif self.map_generator is not None:
+                        self.state = GameState.MAP
+                    else:
+                        self.state = GameState.MAIN_MENU
+                    self._settings_origin = None
+                    self._settings_prev_state = None
+                    return
+                else:
+                    self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
+                    self._settings_origin = None
+                    self._settings_prev_state = None
+                    return
 
         elif self.state == GameState.ACAMPAMENTO:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_acampamento_events(event)
 
         elif self.state == GameState.BESTIARY:
@@ -677,29 +852,96 @@ class Game:
                 result = self.bestiary_screen.handle_event(event)
                 if result == "back":
                     self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
+            if (event.type == pygame.KEYDOWN
+                    and event.key == pygame.K_ESCAPE):
+                self.state = GameState.MAIN_MENU
+                try:
+                    self.music_manager.play_menu_music()
+                except Exception:
+                    pass
 
         elif self.state == GameState.ACHIEVEMENTS:
             if self.achievements_screen:
                 result = self.achievements_screen.handle_event(event)
                 if result == "back":
                     self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
             if (event.type == pygame.KEYDOWN
                     and event.key == pygame.K_ESCAPE):
                 self.state = GameState.MAIN_MENU
+                try:
+                    self.music_manager.play_menu_music()
+                except Exception:
+                    pass
 
         elif self.state == GameState.HOW_TO_PLAY:
             if self.how_to_play_screen:
                 result = self.how_to_play_screen.handle_event(event)
                 if result == "back":
                     self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
 
         elif self.state == GameState.SAVES:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.state = GameState.MAIN_MENU
+                try:
+                    self.music_manager.play_menu_music()
+                except Exception:
+                    pass
+                self.setup_screens()
+                return
             self.handle_saves_events(event)
 
         elif self.state == GameState.SWAP_ANIMAL:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             self.handle_swap_events(event)
 
+        elif self.state == GameState.ANIMAL_ENCOUNTER:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
+            self.handle_animal_encounter_events(event)
+
         elif self.state == GameState.GAME_OVER:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for animal in self.party:
                     if not animal.is_alive or animal.hp <= 0:
@@ -707,8 +949,15 @@ class Game:
                         animal.is_alive = True
                 self.map_generator = None
                 self._save_permanent_data()
-                self.music_manager.stop()
+                try:
+                    self.music_manager.stop()
+                except Exception:
+                    pass
                 self.state = GameState.MAIN_MENU
+                try:
+                    self.music_manager.play_menu_music()
+                except Exception:
+                    pass
                 self.map_ui = None
                 self.combat_system = None
                 self.combat_ui = None
@@ -729,6 +978,17 @@ class Game:
                 self.setup_screens()
 
         elif self.state == GameState.VICTORY:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+                try:
+                    self.settings_screen.sync(self.global_settings)
+                    if hasattr(self.settings_screen, 'set_in_journey'):
+                        self.settings_screen.set_in_journey(True)
+                except Exception:
+                    pass
+                self.state = GameState.SETTINGS
+                return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if self.next_biome_pending:
                     self.current_biome = self.next_biome_pending
@@ -739,21 +999,43 @@ class Game:
                     self.map_generator = None
                     self._save_permanent_data()
                     self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.stop()
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
                     self.map_ui = None
                     self.setup_screens()
                 else:
                     self._save_permanent_data()
-                    self.music_manager.resume_playlist()
+                    try:
+                        self.music_manager.stop()
+                        self.music_manager.resume_playlist()
+                    except Exception:
+                        pass
                     self.state = GameState.MAP
 
         elif self.state == GameState.PAUSE:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.state = GameState.MAP
+                    self._settings_origin = "journey"
+                    self._settings_prev_state = self.state
+                    try:
+                        self.settings_screen.sync(self.global_settings)
+                        if hasattr(self.settings_screen, 'set_in_journey'):
+                            self.settings_screen.set_in_journey(True)
+                    except Exception:
+                        pass
+                    self.state = GameState.SETTINGS
+                    return
                 elif event.key == pygame.K_q:
                     self._save_permanent_data()
                     self.music_manager.stop()
                     self.state = GameState.MAIN_MENU
+                    try:
+                        self.music_manager.play_menu_music()
+                    except Exception:
+                        pass
                     self.map_ui = None
                     self.combat_system = None
                     self.combat_ui = None
@@ -812,8 +1094,29 @@ class Game:
             self.achievement_manager, self.assets)
         self.state = GameState.ACHIEVEMENTS
 
-    def _open_settings(self):
+    def _open_settings(self, origin=None):
         self.settings_screen.sync(self.global_settings)
+        if origin is not None:
+            self._settings_origin = origin
+            self._settings_prev_state = None
+        elif self._settings_origin is None:
+            # default heuristic: if in main menu or no journey active -> main_menu
+            if self.state == GameState.MAIN_MENU:
+                self._settings_origin = "main_menu"
+            elif self.map_generator is not None and self.state in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
+                                                                   GameState.SHOP, GameState.CAMP,
+                                                                   GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                                   GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
+                                                                   GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
+                self._settings_origin = "journey"
+                self._settings_prev_state = self.state
+            else:
+                self._settings_origin = "main_menu"
+        try:
+            if hasattr(self.settings_screen, 'set_in_journey'):
+                self.settings_screen.set_in_journey(self._settings_origin == "journey")
+        except Exception:
+            pass
         self.state = GameState.SETTINGS
 
     def _open_how_to_play(self):
@@ -927,6 +1230,55 @@ class Game:
             self.state = GameState.SWAP_ANIMAL
             return False
 
+    def _end_journey_to_main_menu(self):
+        try:
+            self._save_permanent_data()
+        except Exception:
+            pass
+        try:
+            self.music_manager.stop()
+            self.music_manager.menu_mode = True
+            self.music_manager.is_playlist_mode = False
+            self.music_manager.boss_mode = False
+        except Exception:
+            pass
+        # clear journey state
+        self.map_generator = None
+        self.map_ui = None
+        self.combat_system = None
+        self.combat_ui = None
+        self.pending_level_ups = 0
+        self.pending_level_up_animals = []
+        self.current_level_up_animal = None
+        self.pending_evolutions = []
+        self.current_evolution_animal = None
+        self.current_evolution_stage = 0
+        self.next_biome_pending = None
+        self.pending_rescue_animal = None
+        self.pending_bonus_rescue = None
+        self.encounter_animal_id = None
+        self.encounter_step = "main"
+        self.encounter_swap_index = -1
+        self.cage_reward_screen = None
+        self.swap_screen = None
+        self.swap_pending_new_id = None
+        self.swap_pending_new_name = None
+        self.party = []
+        self.save_data = None
+        self.active_slot = None
+        try:
+            self.save_manager.active_slot = None
+        except Exception:
+            pass
+        self.setup_screens()
+        self.state = GameState.MAIN_MENU
+        try:
+            self.music_manager.play_menu_music()
+        except Exception:
+            pass
+        self._settings_origin = None
+        self._settings_prev_state = None
+
     def _quit_game(self):
         self._save_permanent_data()
         self.running = False
@@ -940,6 +1292,10 @@ class Game:
 
         if action == "back":
             self.state = GameState.MAIN_MENU
+            try:
+                self.music_manager.play_menu_music()
+            except Exception:
+                pass
             self.acampamento_screen.sel_animal = 0
 
     def start_new_run(self):
@@ -957,7 +1313,15 @@ class Game:
         self.next_biome_pending = None
         self.pending_bonus_rescue = None
         self._run_start_time = time.time()
-        self.music_manager.start_playlist()
+        try:
+            # Ensure only journey music plays, no other music instances
+            self.music_manager.stop()
+            self.music_manager.is_playlist_mode = False
+            self.music_manager.boss_mode = False
+            self.music_manager.menu_mode = False
+            self.music_manager.start_playlist()
+        except Exception:
+            pass
         self.state = GameState.MAP
 
     def handle_map_events(self, event):
@@ -965,7 +1329,16 @@ class Game:
             self.map_ui = MapUI(self.map_generator, self.current_biome, self.assets)
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            self.state = GameState.PAUSE
+            # Open settings during journey instead of pause? Requirement says replace ESC during journey to open settings
+            self._settings_origin = "journey"
+            self._settings_prev_state = self.state
+            try:
+                self.settings_screen.sync(self.global_settings)
+                if hasattr(self.settings_screen, 'set_in_journey'):
+                    self.settings_screen.set_in_journey(True)
+            except Exception:
+                pass
+            self.state = GameState.SETTINGS
             return
 
         node_id = self.map_ui.handle_event(event)
@@ -1003,6 +1376,8 @@ class Game:
         spawn_weights = biome_data.get("spawn_weights", None)
         min_level, max_level = level_range
 
+        # Do not stop journey music during combat
+
         if is_boss:
             level = max_level + 2
             enemies = [create_boss(self.current_biome, level)]
@@ -1025,8 +1400,18 @@ class Game:
             show_damage_numbers=self.global_settings.get("show_damage_numbers", True),
             show_combat_log=self.global_settings.get("show_combat_log", True),
         )
-        if is_boss:
-            self.music_manager.play_boss()
+        # Ensure journey music continues during battle
+        try:
+            if hasattr(self.music_manager, 'boss_mode'):
+                self.music_manager.boss_mode = False
+            # make sure playlist mode is active if not already
+            if not getattr(self.music_manager, 'is_playlist_mode', False):
+                self.music_manager.start_playlist()
+            # if somehow stopped, restart playlist
+            if not getattr(self.music_manager, '_playing_filename', None) and getattr(self.music_manager, 'enabled', True):
+                self.music_manager.start_playlist()
+        except Exception:
+            pass
         self.state = GameState.COMBAT
 
     def handle_combat_events(self, event):
@@ -1148,7 +1533,15 @@ class Game:
                 return
         self.victory_message = message
         self.victory_time = time.time()
-        self.music_manager.resume_playlist()
+        # Keep current journey music playing
+        try:
+            if hasattr(self.music_manager, 'boss_mode') and self.music_manager.boss_mode:
+                self.music_manager.boss_mode = False
+                self.music_manager.is_playlist_mode = True
+            if not getattr(self.music_manager, 'is_playlist_mode', False) and getattr(self.music_manager, 'enabled', True):
+                self.music_manager.start_playlist()
+        except Exception:
+            pass
         self.state = GameState.VICTORY
 
     def _start_next_level_up(self):
@@ -1767,6 +2160,30 @@ class Game:
         self.map_ui.draw(self.screen)
         self._render_hud()
 
+    def _get_potion_counts(self):
+        counts = {"health": 0, "defense": 0, "attack": 0}
+        if self.save_data and isinstance(self.save_data, dict):
+            inv = self.save_data.get("inventory") or self.save_data.get("potions") or {}
+            if isinstance(inv, dict):
+                counts["health"] = int(inv.get("health_potion") or inv.get("health") or inv.get("pocao_vida") or 0)
+                counts["defense"] = int(inv.get("defense_potion") or inv.get("defense") or inv.get("pocao_defesa") or 0)
+                counts["attack"] = int(inv.get("attack_potion") or inv.get("attack") or inv.get("pocao_ataque") or inv.get("strength_potion") or 0)
+                return counts
+            if isinstance(inv, list):
+                for item in inv:
+                    if isinstance(item, dict):
+                        tid = (item.get("id") or item.get("type") or item.get("name") or "").lower()
+                        qty = int(item.get("quantity") or item.get("count") or 1)
+                        if "vida" in tid or "heal" in tid or tid == "health":
+                            counts["health"] += qty
+                        elif "def" in tid:
+                            counts["defense"] += qty
+                        elif "ataq" in tid or "atac" in tid or "forc" in tid or "str" in tid:
+                            counts["attack"] += qty
+                return counts
+        # also check party/global flags if present
+        return counts
+
     def _render_hud(self):
         if not self.party:
             return
@@ -1788,6 +2205,43 @@ class Game:
 
         draw_text(self.screen, f"Gold: {self.party[0].gold}",
                   (x_offset + 10, SCREEN_HEIGHT - 45), font_size=18, color=SERTAO_GOLD)
+
+        # Potion indicators bottom-right
+        try:
+            counts = self._get_potion_counts()
+            potions = [
+                ("health", counts.get("health", 0)),
+                ("defense", counts.get("defense", 0)),
+                ("attack", counts.get("attack", 0)),
+            ]
+            icon_size = 24
+            gap = 6
+            panel_h = 34
+            panel_w = len(potions) * (icon_size + 38) + (len(potions) - 1) * gap + 16
+            panel_x = SCREEN_WIDTH - panel_w - 10
+            panel_y = SCREEN_HEIGHT - panel_h - 8
+            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+            p_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            pygame.draw.rect(p_surf, (20, 15, 10, 210), (0, 0, panel_w, panel_h), border_radius=8)
+            self.screen.blit(p_surf, panel_rect.topleft)
+            pygame.draw.rect(self.screen, SERTAO_BORDER, panel_rect, 1, border_radius=8)
+            px = panel_x + 10
+            py = panel_y + (panel_h - icon_size) // 2
+            font_small = get_font(16)
+            for key, qty in potions:
+                icon = self._potion_icons.get(key)
+                if icon:
+                    self.screen.blit(icon, (px, py))
+                else:
+                    # fallback small colored rect
+                    c = (40,200,60) if key == 'health' else ((60,120,255) if key == 'defense' else (255,60,60))
+                    pygame.draw.rect(self.screen, c, (px, py, icon_size, icon_size), border_radius=4)
+                    pygame.draw.rect(self.screen, (20,15,10), (px, py, icon_size, icon_size), 1, border_radius=4)
+                qty_surf = font_small.render(str(qty), True, SERTAO_CREAM)
+                self.screen.blit(qty_surf, (px + icon_size + 4, py + 4))
+                px += icon_size + 38 + gap
+        except Exception:
+            pass
 
     def _render_combat(self):
         if self.combat_ui and self.combat_system:

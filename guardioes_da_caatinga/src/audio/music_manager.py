@@ -26,14 +26,25 @@ class MusicManager:
             "BatalhaFinal.mp3",
             "Defesa de Fogo.mp3",
         ]
+        # Menu/main theme - look for common names, prefer exact as specified
+        self.menu_tracks = [
+            "GuardiõesdaNatureza.mp3",
+            "GuardioesdaNatureza.mp3",
+            "Guardiões da Natureza.mp3",
+            "Guardioes da Natureza.mp3",
+            "GuardioesDaNatureza.mp3",
+            "guardioes_da_natureza.mp3",
+        ]
 
         self.current_index = 0
         self.is_playlist_mode = False
         self.boss_mode = False
+        self.menu_mode = False
         self._music_end_event = pygame.USEREVENT + 1
         self._active_tracks = list(self.main_playlist)
         self._playing_filename = None
         self._main_index = 0
+        self._menu_track = None
 
         if not os.path.isdir(self.music_dir):
             print(f"[MUSIC] diretorio nao encontrado: {self.music_dir}")
@@ -60,7 +71,37 @@ class MusicManager:
         path = os.path.join(self.music_dir, filename)
         if os.path.isfile(path):
             return path
+        # also try case-insensitive / partial matches if needed
+        try:
+            for f in os.listdir(self.music_dir):
+                if f.lower() == filename.lower():
+                    p2 = os.path.join(self.music_dir, f)
+                    if os.path.isfile(p2):
+                        return p2
+        except Exception:
+            pass
         print(f"[MUSIC] arquivo nao encontrado: {path}")
+        return None
+
+    def _get_menu_track(self):
+        if self._menu_track and os.path.isfile(self._menu_track):
+            return os.path.basename(self._menu_track)
+        for name in self.menu_tracks:
+            p = self._find_file(name)
+            if p:
+                self._menu_track = p
+                return name
+        # try to find any file containing "natureza"
+        try:
+            for f in os.listdir(self.music_dir):
+                lf = f.lower()
+                if 'natureza' in lf and f.lower().endswith(('.mp3', '.ogg', '.wav')):
+                    p = os.path.join(self.music_dir, f)
+                    if os.path.isfile(p):
+                        self._menu_track = p
+                        return f
+        except Exception:
+            pass
         return None
 
     def _play_file(self, filename, loops=0):
@@ -90,15 +131,43 @@ class MusicManager:
     def start_playlist(self):
         if not self.enabled or not self._mixer_ok:
             return
-        if self.is_playlist_mode and not self.boss_mode:
-            print("[MUSIC] playlist principal ja em andamento, nao reiniciando")
-            return
+        if self.is_playlist_mode and not self.boss_mode and not self.menu_mode:
+            if pygame.mixer.music.get_busy():
+                print("[MUSIC] playlist principal ja em andamento, nao reiniciando")
+                return
+        self.menu_mode = False
         self.is_playlist_mode = True
         self.boss_mode = False
         self._active_tracks = list(self.main_playlist)
-        self.current_index = random.choice(range(len(self.main_playlist)))
-        print("[MUSIC] playlist principal iniciada (primeira faixa sorteada)")
+        if not self._active_tracks:
+            return
+        # keep current index if possible
+        if self.current_index >= len(self._active_tracks):
+            self.current_index = random.choice(range(len(self._active_tracks)))
+        print("[MUSIC] playlist principal iniciada/garantida")
         self._play_file(self._active_tracks[self.current_index], loops=0)
+
+    def play_menu_music(self):
+        if not self.enabled or not self._mixer_ok:
+            return
+        track = self._get_menu_track()
+        if not track:
+            print("[MUSIC] musica de menu nao encontrada")
+            return
+        if self.menu_mode and self._playing_filename == track and pygame.mixer.music.get_busy():
+            return
+        self.menu_mode = True
+        self.boss_mode = False
+        self.is_playlist_mode = False
+        self._active_tracks = []
+        self._play_file(track, loops=-1)
+
+    def stop_menu_music(self):
+        if not self.enabled or not self._mixer_ok:
+            return
+        if self.menu_mode:
+            self._stop_music()
+            self.menu_mode = False
 
     def _advance_playlist(self):
         ended = self._playing_filename
@@ -135,14 +204,19 @@ class MusicManager:
             print("[MUSIC] retornando para playlist principal")
             self._play_file(self._active_tracks[self.current_index], loops=0)
 
-    def stop(self):
+    def stop(self, force=False):
         if not self.enabled or not self._mixer_ok:
             return
-        if not self.is_playlist_mode and not self.boss_mode:
+        # Don't stop if in journey playlist/boss mode unless forced
+        if not force and (self.is_playlist_mode or self.boss_mode):
+            print("[MUSIC] stop ignorado (modo jornada ativo)")
+            return
+        if not force and not self.is_playlist_mode and not self.boss_mode and not self.menu_mode:
             return
         self._stop_music()
         self.is_playlist_mode = False
         self.boss_mode = False
+        self.menu_mode = False
         self.current_index = 0
         self._active_tracks = list(self.main_playlist)
         self._main_index = 0

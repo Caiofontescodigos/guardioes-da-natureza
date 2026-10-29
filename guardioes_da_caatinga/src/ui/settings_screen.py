@@ -40,10 +40,55 @@ class SettingsScreen:
             cancel_label="CANCELAR",
             confirm_color=(150, 80, 40),
         )
+        self._exit_dialog = ConfirmDialog(
+            title="Voltar ao menu",
+            message="Tem certeza que deseja voltar ao menu principal? "
+                    "O progresso nao salvo podera ser perdido.",
+            confirm_label="VOLTAR",
+            cancel_label="CANCELAR",
+            confirm_color=(150, 50, 40),
+        )
+        self.in_journey = False
         self._build()
         self.sync(settings or DEFAULT_GLOBAL_SETTINGS)
 
     # ------------------------------------------------------------ layout
+
+    def set_in_journey(self, in_journey):
+        self.in_journey = bool(in_journey)
+        self._rebuild_buttons()
+
+    def _rebuild_buttons(self):
+        total_w = SCREEN_WIDTH - SAFE_MARGIN * 2
+        self.data_panel = pygame.Rect(SAFE_MARGIN, 562, total_w, 94)
+        button_y = self.data_panel.y + 24
+        if self.in_journey:
+            # Reset, return to menu, back
+            total_buttons = 260 + 320 + 200 + 40
+            start_x = CENTER_X - total_buttons // 2
+            self.reset_button = ActionButton(
+                "reset_defaults", "Restaurar padroes",
+                pygame.Rect(start_x, button_y, 260, 46),
+                color=(120, 70, 40), font_size=20)
+            self.return_menu_button = ActionButton(
+                "return_to_main_menu", "Retornar ao menu principal",
+                pygame.Rect(start_x + 280, button_y, 320, 46),
+                color=(150, 50, 40), font_size=18)
+            self.back_button = ActionButton(
+                "back", "Voltar", pygame.Rect(start_x + 620, button_y, 200, 46),
+                font_size=22)
+        else:
+            total_buttons = 260 + 200 + 20
+            start_x = CENTER_X - total_buttons // 2
+            self.reset_button = ActionButton(
+                "reset_defaults", "Restaurar padroes",
+                pygame.Rect(start_x, button_y, 260, 46),
+                color=(120, 70, 40), font_size=20)
+            if hasattr(self, 'return_menu_button'):
+                self.return_menu_button = None
+            self.back_button = ActionButton(
+                "back", "Voltar", pygame.Rect(start_x + 280, button_y, 200, 46),
+                font_size=22)
 
     def _build(self):
         total_w = SCREEN_WIDTH - SAFE_MARGIN * 2
@@ -97,17 +142,8 @@ class SettingsScreen:
             self.confirm_quit_toggle,
         ]
 
-        self.data_panel = pygame.Rect(SAFE_MARGIN, 562, total_w, 94)
-        button_y = self.data_panel.y + 24
-        total_buttons = 260 + 200 + 20
-        start_x = CENTER_X - total_buttons // 2
-        self.reset_button = ActionButton(
-            "reset_defaults", "Restaurar padroes",
-            pygame.Rect(start_x, button_y, 260, 46),
-            color=(120, 70, 40), font_size=20)
-        self.back_button = ActionButton(
-            "back", "Voltar", pygame.Rect(start_x + 280, button_y, 200, 46),
-            font_size=22)
+        self.in_journey = False
+        self._rebuild_buttons()
 
     # ------------------------------------------------------------ state
 
@@ -130,6 +166,16 @@ class SettingsScreen:
     # ------------------------------------------------------------ events
 
     def handle_event(self, event):
+        if getattr(self, '_exit_dialog', None) and self._exit_dialog.visible:
+            result = self._exit_dialog.handle_event(event)
+            if result == "confirm":
+                self._exit_dialog.close()
+                return ("action", "return_to_main_menu_confirm")
+            if result == "cancel":
+                self._exit_dialog.close()
+                return ("action", "return_to_main_menu_cancel")
+            return None
+
         if self.dialog.visible:
             result = self.dialog.handle_event(event)
             if result == "confirm":
@@ -145,6 +191,12 @@ class SettingsScreen:
             self.dialog.open(action="reset_defaults")
             return None
 
+        if getattr(self, 'return_menu_button', None):
+            result = self.return_menu_button.handle_event(event)
+            if result:
+                self._exit_dialog.open(action="return_to_main_menu")
+                return None
+
         result = self.back_button.handle_event(event)
         if result:
             return result
@@ -153,6 +205,8 @@ class SettingsScreen:
             result = control.handle_event(event)
             if result:
                 if result[0] == "setting":
+                    if not hasattr(self, 'settings') or self.settings is None:
+                        self.settings = {}
                     self.settings[result[1]] = result[2]
                 return result
         return None
@@ -196,6 +250,10 @@ class SettingsScreen:
 
         self._draw_section(surface, self.data_panel, "DADOS")
         self.reset_button.draw(surface)
+        if getattr(self, 'return_menu_button', None):
+            self.return_menu_button.draw(surface)
         self.back_button.draw(surface)
 
         self.dialog.draw(surface)
+        if getattr(self, '_exit_dialog', None):
+            self._exit_dialog.draw(surface)
