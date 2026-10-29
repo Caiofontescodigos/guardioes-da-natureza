@@ -39,6 +39,11 @@ class CombatSystem:
         self.combat_ended = False
         self.player_won = False
         self.pending_events = []
+        self.stats = {
+            "damage_taken": 0,
+            "dodges": 0,
+            "max_crit_damage": 0,
+        }
 
     def start_combat(self):
         all_units = [(u, u.speed) for u in self.party if u.is_alive] + \
@@ -186,7 +191,10 @@ class CombatSystem:
             if dodged:
                 self._log(f"{unit.name} ataca {target.name} - ESQUIVOU!")
                 events.append(CombatEvent("dodge", unit.name, target.name, 0))
+                if target in self.party:
+                    self.stats["dodges"] += 1
             else:
+                self._record_damage(unit, target, dmg_dealt, is_crit)
                 crit_text = " CRÍTICO!" if is_crit else ""
                 self._log(f"{unit.name} ataca {target.name} por {dmg_dealt}{crit_text}")
                 events.append(CombatEvent("damage", unit.name, target.name, dmg_dealt, is_crit=is_crit))
@@ -221,6 +229,7 @@ class CombatSystem:
                 second_target = random.choice(alive)
                 dmg_dealt, dodged = second_target.take_damage(damage)
                 if not dodged:
+                    self._record_damage(unit, second_target, dmg_dealt, False)
                     events.append(CombatEvent("damage", unit.name, second_target.name, dmg_dealt))
                     self._log(f"{unit.name} ataca novamente {second_target.name} por {dmg_dealt}")
 
@@ -360,6 +369,29 @@ class CombatSystem:
                     if healed > 0:
                         events.append(CombatEvent("heal", unit.name, ally.name, healed, heal=True))
         return events
+
+    def _record_damage(self, unit, target, damage, is_crit):
+        damage = max(0, int(damage or 0))
+        if target in self.party:
+            self.stats["damage_taken"] += damage
+        if is_crit and unit in self.party:
+            self.stats["max_crit_damage"] = max(
+                self.stats["max_crit_damage"], damage)
+
+    def combat_stats(self):
+        stats = dict(self.stats)
+        stats["turns"] = self.turn_count
+        stats["low_hp_win"] = self._is_low_hp_win()
+        return stats
+
+    def _is_low_hp_win(self):
+        if not self.player_won:
+            return False
+        alive = [unit for unit in self.party if unit.is_alive]
+        if len(alive) != 1:
+            return False
+        survivor = alive[0]
+        return survivor.max_hp > 0 and survivor.hp <= survivor.max_hp * 0.1
 
     def _check_combat_end(self):
         all_party_dead = all(not u.is_alive for u in self.party)

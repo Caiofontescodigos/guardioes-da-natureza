@@ -341,6 +341,12 @@ class SaveManager:
     def load_slot(self, slot):
         return self.load_game(slot)
 
+    def read_slot(self, slot):
+        """Read a slot without changing the active slot (used by profiles)."""
+        if self.get_slot_status(slot) != "ok":
+            return None
+        return self._read_slot(slot)
+
     # -------------------------------------------------------------- delete
 
     def delete_slot(self, slot):

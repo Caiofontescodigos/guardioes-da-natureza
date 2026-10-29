@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 *.json.bak
 guardioes_da_caatinga/saves/settings.json
+guardioes_da_caatinga/saves/achievements.json
+guardioes_da_caatinga/saves/achievements.json.tmp

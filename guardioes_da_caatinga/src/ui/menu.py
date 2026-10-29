@@ -39,13 +39,15 @@ class MainMenu:
         ("JOGAR", "play"),
         ("COMO JOGAR", "how_to_play"),
         ("BESTIARIO", "bestiary"),
+        ("CONQUISTAS", "achievements"),
         ("ACAMPAMENTO", "acampamento"),
         ("CONFIGURACOES", "settings"),
         ("SAIR", "quit"),
     ]
 
-    def __init__(self, assets=None):
+    def __init__(self, assets=None, achievement_manager=None):
         self.assets = assets
+        self.achievement_manager = achievement_manager
         self.hover_index = -1
         self.layout = UILayout()
         self._build()
@@ -89,8 +91,21 @@ class MainMenu:
                                font_size=self.metrics.font_size)
 
         fv = get_font(18)
-        vs = fv.render("Versao 1.0", True, GRAY)
-        surface.blit(vs, vs.get_rect(center=(CENTER_X, self.layout.footer.center_y)))
+        if self.achievement_manager is not None:
+            title = self.achievement_manager.current_title()
+            ft = get_font(16)
+            title_surf = ft.render(f"Titulo: {title}", True, SERTAO_GOLD)
+            title_rect = title_surf.get_rect(
+                center=(CENTER_X, self.layout.footer.center_y - 10))
+            surface.blit(title_surf, title_rect)
+            vs = fv.render("Versao 1.0", True, GRAY)
+            version_rect = vs.get_rect(
+                center=(CENTER_X, self.layout.footer.center_y + 12))
+            surface.blit(vs, version_rect)
+        else:
+            vs = fv.render("Versao 1.0", True, GRAY)
+            surface.blit(vs, vs.get_rect(
+                center=(CENTER_X, self.layout.footer.center_y)))
 
 
 class AnimalSelectScreen:

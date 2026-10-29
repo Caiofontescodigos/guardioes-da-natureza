@@ -1,0 +1,310 @@
+{
+    "version": 1,
+    "titles": [
+        {"points": 0, "name": "Novato"},
+        {"points": 10, "name": "Desbravador"},
+        {"points": 25, "name": "Guardião da Caatinga"},
+        {"points": 40, "name": "Herói do Sertão"},
+        {"points": 55, "name": "Lenda do Sertão"},
+        {"points": 74, "name": "Imortal da Caatinga"}
+    ],
+    "achievements": [
+        {
+            "id": "first_win",
+            "name": "Primeiros Passos",
+            "description": "Vença seu primeiro combate.",
+            "category": "jornada",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "counter", "key": "combats_won", "target": 1}
+        },
+        {
+            "id": "first_boss",
+            "name": "Sobrevivente",
+            "description": "Derrote o seu primeiro chefe.",
+            "category": "jornada",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "counter", "key": "bosses_defeated", "target": 1}
+        },
+        {
+            "id": "caatinga_guardian",
+            "name": "Guardião da Caatinga",
+            "description": "Conclua a Caatinga e desbloqueie o Cerrado.",
+            "category": "jornada",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "set_contains", "key": "biomes_unlocked", "value": "cerrado"}
+        },
+        {
+            "id": "explorer",
+            "name": "Explorador",
+            "description": "Desbloqueie os cinco biomas do jogo.",
+            "category": "jornada",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "biomes_unlocked", "target": 5}
+        },
+        {
+            "id": "sertao_legend",
+            "name": "Lenda do Sertão",
+            "description": "Derrote os cinco chefes dos biomas.",
+            "category": "jornada",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "counter", "key": "bosses_defeated", "target": 5}
+        },
+        {
+            "id": "comeback",
+            "name": "Recomeço",
+            "description": "Inicie uma nova jornada depois de um game over.",
+            "category": "jornada",
+            "tier": "prata",
+            "secret": true,
+            "condition": {"type": "flag", "key": "comeback"}
+        },
+        {
+            "id": "hunter",
+            "name": "Caçador",
+            "description": "Derrote 10 inimigos.",
+            "category": "combate",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "counter", "key": "enemies_defeated", "target": 10}
+        },
+        {
+            "id": "exterminator",
+            "name": "Exterminador",
+            "description": "Derrote 50 inimigos.",
+            "category": "combate",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "counter", "key": "enemies_defeated", "target": 50}
+        },
+        {
+            "id": "flawless",
+            "name": "Sem um Arranhão",
+            "description": "Vença um combate sem sofrer nenhum dano.",
+            "category": "combate",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "counter", "key": "flawless_wins", "target": 1}
+        },
+        {
+            "id": "brink",
+            "name": "Na Beira do Abismo",
+            "description": "Vença com apenas um animal vivo e com 10% de vida ou menos.",
+            "category": "combate",
+            "tier": "ouro",
+            "secret": true,
+            "condition": {"type": "counter", "key": "low_hp_wins", "target": 1}
+        },
+        {
+            "id": "brutal_blow",
+            "name": "Golpe Brutal",
+            "description": "Cause um dano crítico de 50 ou mais.",
+            "category": "combate",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "max", "key": "max_crit_damage", "target": 50}
+        },
+        {
+            "id": "lightning",
+            "name": "Relâmpago",
+            "description": "Vença um combate em até 3 turnos.",
+            "category": "combate",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "min", "key": "fastest_win_turns", "target": 3}
+        },
+        {
+            "id": "wall",
+            "name": "Muralha",
+            "description": "Termine um combate recebendo 5 de dano ou menos.",
+            "category": "combate",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "min", "key": "min_damage_taken", "target": 5}
+        },
+        {
+            "id": "dodger",
+            "name": "Esquivo",
+            "description": "Esquive 3 ataques no mesmo combate.",
+            "category": "combate",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "max", "key": "max_dodges_combat", "target": 3}
+        },
+        {
+            "id": "full_family",
+            "name": "Família Completa",
+            "description": "Desbloqueie os seis animais jogáveis.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "animals_unlocked", "target": 6}
+        },
+        {
+            "id": "first_evolution",
+            "name": "Primeira Evolução",
+            "description": "Evolua um animal pela primeira vez.",
+            "category": "animais",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "evolved_animals", "target": 1}
+        },
+        {
+            "id": "all_forms",
+            "name": "Todas as Formas",
+            "description": "Evolua todos os seis animais.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "evolved_animals", "target": 6}
+        },
+        {
+            "id": "level_10",
+            "name": "Nível 10",
+            "description": "Leve um animal ao nível 10.",
+            "category": "animais",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "max", "key": "animal_level", "target": 10}
+        },
+        {
+            "id": "level_20",
+            "name": "Nível 20",
+            "description": "Leve um animal ao nível 20.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "max", "key": "animal_level", "target": 20}
+        },
+        {
+            "id": "upgrade_master",
+            "name": "Mestre das Melhorias",
+            "description": "Escolha 25 melhorias permanentes.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "counter", "key": "upgrades_chosen", "target": 25}
+        },
+        {
+            "id": "specialist",
+            "name": "Especialista",
+            "description": "Obtenha a melhoria específica dos seis animais.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "specific_upgrades", "target": 6}
+        },
+        {
+            "id": "dream_team",
+            "name": "Equipe dos Sonhos",
+            "description": "Jogue com três animais na equipe.",
+            "category": "animais",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "max", "key": "party_size", "target": 3}
+        },
+        {
+            "id": "absolute_power",
+            "name": "Poder Absoluto",
+            "description": "Tenha um animal com ataque, defesa ou velocidade em 100 ou mais.",
+            "category": "animais",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "max", "key": "max_combat_attribute", "target": 100}
+        },
+        {
+            "id": "curious",
+            "name": "Curioso",
+            "description": "Descubra três criaturas no bestiário.",
+            "category": "bestiario",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "bestiary_creatures", "target": 3}
+        },
+        {
+            "id": "complete_bestiary",
+            "name": "Bestiário Completo",
+            "description": "Descubra as sete criaturas do jogo.",
+            "category": "bestiario",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "bestiary_creatures", "target": 7}
+        },
+        {
+            "id": "animal_expert",
+            "name": "Conhecedor",
+            "description": "Registre todos os animais no bestiário.",
+            "category": "bestiario",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "set_size", "key": "bestiary_animals", "target": 6}
+        },
+        {
+            "id": "merchant",
+            "name": "Mercador",
+            "description": "Gaste 500 de ouro na loja.",
+            "category": "extras",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "counter", "key": "gold_spent", "target": 500}
+        },
+        {
+            "id": "tycoon",
+            "name": "Magnata",
+            "description": "Acumule 1.000 de ouro em uma jornada.",
+            "category": "extras",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "max", "key": "max_gold", "target": 1000}
+        },
+        {
+            "id": "wanderer",
+            "name": "Andarilho",
+            "description": "Resolva 10 eventos durante as jornadas.",
+            "category": "extras",
+            "tier": "prata",
+            "secret": false,
+            "condition": {"type": "counter", "key": "events_resolved", "target": 10}
+        },
+        {
+            "id": "well_rested",
+            "name": "Descanso Merecido",
+            "description": "Use o acampamento 10 vezes.",
+            "category": "extras",
+            "tier": "bronze",
+            "secret": false,
+            "condition": {"type": "counter", "key": "camps_used", "target": 10}
+        },
+        {
+            "id": "tough_loss",
+            "name": "Duro na Queda",
+            "description": "Perder também faz parte. Perdeu 5 combates.",
+            "category": "extras",
+            "tier": "bronze",
+            "secret": true,
+            "condition": {"type": "counter", "key": "combats_lost", "target": 5}
+        },
+        {
+            "id": "veteran",
+            "name": "Veterano",
+            "description": "Jogue por 10 horas no total.",
+            "category": "extras",
+            "tier": "ouro",
+            "secret": false,
+            "condition": {"type": "counter", "key": "play_time", "target": 36000}
+        },
+        {
+            "id": "platinum",
+            "name": "Platinador",
+            "description": "Desbloqueie todas as outras conquistas.",
+            "category": "extras",
+            "tier": "platina",
+            "secret": false,
+            "condition": {"type": "all_achievements"}
+        }
+    ]
+}

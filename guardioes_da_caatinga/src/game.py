@@ -4,6 +4,8 @@ from src.entities.enemy import create_enemy_group, create_elite_enemy, create_bo
 from src.map.map_generator import MapGenerator
 from src.progression.level_up import LevelUpSystem
 from src.save.save_manager import SaveManager
+from src.save.achievement_manager import AchievementManager
+from src.audio.sfx import SfxManager
 from src.state import GameState, NodeType
 from src.ui.map_ui import MapUI
 from src.ui.combat_ui import CombatUI
@@ -74,6 +76,62 @@ def _draw_panel(surface, rect, fill_color, border_color, radius=14, alpha=230,
     return rect
 
 
+def _draw_category_icon(surface, category, rect, color):
+    """Draw a small vector icon for an upgrade category.
+
+    Uses only pygame primitives so it never depends on emoji/symbol fonts.
+    """
+    rect = pygame.Rect(rect)
+    pygame.draw.rect(surface, (30, 26, 20), rect, border_radius=10)
+    pygame.draw.rect(surface, color, rect, 2, border_radius=10)
+
+    cx, cy = rect.center
+    s = rect.w
+    if category == "offense":
+        # Sword pointing up: blade, crossguard, grip and pommel.
+        tip_y = cy - s * 0.32
+        blade = [(cx, tip_y),
+                 (cx + s * 0.075, tip_y + s * 0.10),
+                 (cx + s * 0.055, cy + s * 0.10),
+                 (cx - s * 0.055, cy + s * 0.10),
+                 (cx - s * 0.075, tip_y + s * 0.10)]
+        pygame.draw.polygon(surface, color, blade)
+        pygame.draw.line(surface, color,
+                         (cx - s * 0.22, cy + s * 0.12),
+                         (cx + s * 0.22, cy + s * 0.12),
+                         max(3, s // 10))
+        pygame.draw.line(surface, color,
+                         (cx, cy + s * 0.14), (cx, cy + s * 0.28),
+                         max(3, s // 12))
+        pygame.draw.circle(surface, color, (int(cx), int(cy + s * 0.31)),
+                           max(2, s // 13))
+    elif category == "defense":
+        # Shield.
+        points = [(cx - s * 0.26, cy - s * 0.24),
+                  (cx, cy - s * 0.32),
+                  (cx + s * 0.26, cy - s * 0.24),
+                  (cx + s * 0.22, cy + s * 0.10),
+                  (cx, cy + s * 0.32),
+                  (cx - s * 0.22, cy + s * 0.10)]
+        pygame.draw.polygon(surface, color, points)
+        pygame.draw.polygon(surface, (30, 26, 20), points,
+                            max(1, s // 22))
+    elif category == "utility":
+        # Lightning bolt.
+        points = [(cx - s * 0.04, cy - s * 0.32),
+                  (cx + s * 0.24, cy - s * 0.32),
+                  (cx + s * 0.02, cy - s * 0.02),
+                  (cx + s * 0.18, cy - s * 0.02),
+                  (cx - s * 0.18, cy + s * 0.32),
+                  (cx - s * 0.02, cy + s * 0.06),
+                  (cx - s * 0.22, cy + s * 0.06)]
+        pygame.draw.polygon(surface, color, points)
+    else:
+        text = {"offense": "ATK", "defense": "DEF"}.get(category, "UTI")
+        surf = get_font(max(10, int(rect.h * 0.30))).render(text, True, color)
+        surface.blit(surf, surf.get_rect(center=rect.center))
+
+
 def draw_bar(surface, x, y, width, height, current, maximum, fill_color=GREEN):
     pygame.draw.rect(surface, GRAY, (x, y, width, height))
     fill_width = int((current / maximum) * width) if maximum > 0 else 0
@@ -125,6 +183,13 @@ class Game:
         self.save_manager.set_status_callback(self._on_save_status)
         from src.save.bestiary_manager import BestiaryManager
         self.bestiary_manager = BestiaryManager(self.save_manager)
+        self.achievement_manager = AchievementManager(self.save_manager)
+        self.achievement_manager.sync_all_slots(self.save_manager)
+        self.achievements_screen = None
+        from src.ui.achievement_toast import ToastManager
+        self.sfx = SfxManager(self.global_settings)
+        self.achievement_toasts = ToastManager(
+            on_show=lambda entry: self.sfx.play_achievement())
         self.save_data = None
         self.active_slot = None
 
@@ -259,6 +324,8 @@ class Game:
             self.music_manager.set_volume(float(value))
         elif key == "music_muted":
             self.music_manager.set_muted(bool(value))
+        elif key == "sfx_volume":
+            self.sfx.set_volume(float(value))
 
         if self.save_data is not None:
             self.save_data.setdefault("settings", {})[key] = value
@@ -280,6 +347,7 @@ class Game:
         self._apply_display_mode(self.fullscreen)
         self.music_manager.set_volume(defaults["music_volume"])
         self.music_manager.set_muted(defaults["music_muted"])
+        self.sfx.set_volume(defaults.get("sfx_volume", 0.8))
 
         if self.save_data is not None:
             self.save_data["settings"] = copy.deepcopy(defaults)
@@ -346,6 +414,8 @@ class Game:
         self.save_data = data
         self.active_slot = slot
         self.save_manager.active_slot = slot
+        self.achievement_manager.bind_slot(slot)
+        self.achievement_manager.sync_from_save(slot, data)
         self._rebuild_party_from_save()
         self.setup_screens()
         self._resume_saved_run()
@@ -378,6 +448,7 @@ class Game:
         self.save_data = self.save_manager.create_save()
         self.active_slot = slot
         self.save_manager.active_slot = slot
+        self.achievement_manager.bind_slot(slot)
         self.party = []
         self.setup_screens()
         self.save_manager.save_game(self.save_data)
@@ -430,7 +501,7 @@ class Game:
                                   JourneySelectScreen)
         from src.ui.settings_screen import SettingsScreen
         from src.ui.how_to_play import HowToPlayScreen
-        self.main_menu = MainMenu(self.assets)
+        self.main_menu = MainMenu(self.assets, self.achievement_manager)
         unlocked = self.save_data.get("unlocked_animals", ["tatu_bola"]) if self.save_data else ["tatu_bola"]
         biomes = self.save_data.get("unlocked_biomes", ["caatinga"]) if self.save_data else ["caatinga"]
         self.animal_select = AnimalSelectScreen(unlocked, self.assets, self.save_data or {})
@@ -440,6 +511,9 @@ class Game:
         self.acampamento_screen = AcampamentoScreen(self.save_data or {}, self.assets, self.party)
         self.journey_select_screen = JourneySelectScreen(self.save_manager, self.assets)
         self.how_to_play_screen = HowToPlayScreen(self.assets)
+        from src.ui.achievements_screen import AchievementsScreen
+        self.achievements_screen = AchievementsScreen(
+            self.achievement_manager, self.assets)
         self.cage_reward_screen = None
 
     def _save_run_state(self):
@@ -467,12 +541,16 @@ class Game:
             self.save_data["play_time"] = self.save_data.get("play_time", 0) + elapsed
             self._run_start_time = time.time()
         self._save_run_state()
+        if self.active_slot is not None:
+            self.achievement_manager.sync_from_save(
+                self.active_slot, self.save_data)
         self.save_manager.save_game(self.save_data)
 
     def _defeat_run(self):
         self.map_generator = None
         self.combat_system = None
         self.combat_ui = None
+        self.achievement_manager.set_flag("game_over_pending", True)
         self._save_permanent_data()
         self.music_manager.stop()
         self.state = GameState.GAME_OVER
@@ -527,6 +605,7 @@ class Game:
                     "play": self._open_journey_select,
                     "how_to_play": self._open_how_to_play,
                     "bestiary": self._open_bestiary,
+                    "achievements": self._open_achievements,
                     "acampamento": self._open_acampamento,
                     "settings": self._open_settings,
                     "quit": self._quit_game,
@@ -598,6 +677,15 @@ class Game:
                 result = self.bestiary_screen.handle_event(event)
                 if result == "back":
                     self.state = GameState.MAIN_MENU
+
+        elif self.state == GameState.ACHIEVEMENTS:
+            if self.achievements_screen:
+                result = self.achievements_screen.handle_event(event)
+                if result == "back":
+                    self.state = GameState.MAIN_MENU
+            if (event.type == pygame.KEYDOWN
+                    and event.key == pygame.K_ESCAPE):
+                self.state = GameState.MAIN_MENU
 
         elif self.state == GameState.HOW_TO_PLAY:
             if self.how_to_play_screen:
@@ -718,6 +806,12 @@ class Game:
         self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets)
         self.state = GameState.BESTIARY
 
+    def _open_achievements(self):
+        from src.ui.achievements_screen import AchievementsScreen
+        self.achievements_screen = AchievementsScreen(
+            self.achievement_manager, self.assets)
+        self.state = GameState.ACHIEVEMENTS
+
     def _open_settings(self):
         self.settings_screen.sync(self.global_settings)
         self.state = GameState.SETTINGS
@@ -739,6 +833,7 @@ class Game:
         self.save_data = data
         self.active_slot = slot
         self.save_manager.active_slot = slot
+        self.achievement_manager.bind_slot(slot)
         self.party = []
         self._rebuild_party_from_save()
         self.setup_screens()
@@ -848,6 +943,8 @@ class Game:
             self.acampamento_screen.sel_animal = 0
 
     def start_new_run(self):
+        if self.achievement_manager.check_and_clear_flag("game_over_pending"):
+            self.achievement_manager.set_flag("comeback", True)
         self.map_generator = MapGenerator(self.current_biome)
         self.map_generator.generate()
         self.map_ui = None
@@ -970,6 +1067,9 @@ class Game:
             self.save_data = self.save_manager.update_statistics(self.save_data, "enemies_defeated", len(self.combat_system.enemies))
             if levels_gained > 0:
                 self.save_data = self.save_manager.update_statistics(self.save_data, "levels_gained", levels_gained)
+
+            self.achievement_manager.record_combat(
+                self.combat_system.combat_stats(), won=True)
 
             for enemy in self.combat_system.enemies:
                 self.save_data, is_new = self.bestiary_manager.register_creature(
@@ -1133,6 +1233,7 @@ class Game:
                     break
 
     def apply_event_choice(self, choice):
+        self.achievement_manager.record("events_resolved", 1)
         if "hp_cost" in choice and choice["hp_cost"] > 0:
             for animal in self.party:
                 animal.hp -= choice["hp_cost"]
@@ -1235,6 +1336,7 @@ class Game:
                         for a in self.party:
                             a.gold -= cost
                         effect()
+                        self.achievement_manager.record("gold_spent", cost)
                         self._save_permanent_data()
                     break
 
@@ -1266,16 +1368,16 @@ class Game:
                     animal.is_alive = True
                 heal_amount = int(animal.max_hp * 0.3)
                 animal.heal(heal_amount)
+            self.achievement_manager.record("camps_used", 1)
             self._save_permanent_data()
             self.state = GameState.MAP
             self.map_ui = None
 
     def _level_up_layout(self):
-        remaining = len(self.pending_level_up_animals)
-        start_y = 190 if remaining <= 1 else 185
-        buttons = [pygame.Rect(SCREEN_WIDTH // 2 - 230, start_y + i * 140, 460, 120)
+        portrait = pygame.Rect(145, 165, 290, 430)
+        buttons = [pygame.Rect(475, 165 + i * 152, 660, 126)
                    for i in range(len(self.level_up_offers or []))]
-        return {"start_y": start_y, "buttons": buttons}
+        return {"portrait": portrait, "buttons": buttons}
 
     def handle_level_up_events(self, event):
         layout = self._level_up_layout()
@@ -1298,6 +1400,7 @@ class Game:
                     if upgrade_id and target_animal:
                         self.save_data = self.save_manager.add_permanent_upgrade(
                             self.save_data, target_animal.animal_id, upgrade_id)
+                    self.achievement_manager.record("upgrades_chosen", 1)
                     self.level_up_offers = None
 
                     if self.pending_level_up_animals:
@@ -1583,6 +1686,15 @@ class Game:
             self.combat_ui.update()
         if self.state == GameState.CAGE_REWARD and self.cage_reward_screen:
             self.cage_reward_screen.update()
+        self._process_achievement_unlocks()
+        self.achievement_toasts.update()
+
+    def _process_achievement_unlocks(self):
+        new_ids = self.achievement_manager.drain_new_unlocks()
+        if not new_ids:
+            return
+        entries = [self.achievement_manager.get_entry(aid) for aid in new_ids]
+        self.achievement_toasts.push([e for e in entries if e])
 
     def render(self):
         renderers = {
@@ -1592,6 +1704,7 @@ class Game:
             GameState.SETTINGS: lambda: self.settings_screen.draw(self.screen),
             GameState.ACAMPAMENTO: lambda: self.acampamento_screen.draw(self.screen) if self.acampamento_screen else None,
             GameState.BESTIARY: lambda: self.bestiary_screen.draw(self.screen) if self.bestiary_screen else None,
+            GameState.ACHIEVEMENTS: lambda: self.achievements_screen.draw(self.screen) if self.achievements_screen else None,
             GameState.HOW_TO_PLAY: lambda: self.how_to_play_screen.draw(self.screen) if self.how_to_play_screen else None,
             GameState.CAGE_REWARD: lambda: self.cage_reward_screen.draw(self.screen) if self.cage_reward_screen else None,
             GameState.MAP: self._render_map,
@@ -1616,6 +1729,7 @@ class Game:
         if self.quit_dialog.visible:
             self.quit_dialog.draw(self.screen)
         self._draw_save_status()
+        self.achievement_toasts.draw(self.screen)
         self._blit_scaled()
         pygame.display.flip()
 
@@ -1810,6 +1924,48 @@ class Game:
             ("Clique para continuar", 22, SERTAO_CREAM),
         ], content_rect, line_spacing=14)
 
+    def _draw_level_up_portrait(self, animal, rect):
+        from src.entities.animal import EVOLUTION_STAGE_NAMES
+
+        _draw_panel(self.screen, rect, (45, 35, 22), SERTAO_GOLD,
+                    radius=14, border_width=2)
+        draw_text_centered(self.screen, "SEU ANIMAL",
+                           rect.centerx, rect.y + 28, 16, SERTAO_LIGHT)
+
+        sprite_area = pygame.Rect(rect.x + 20, rect.y + 48,
+                                  rect.w - 40, 210)
+        stage = getattr(animal, "evolution_stage", 0) or 0
+        sprite = None
+        if self.assets:
+            sprite = self.assets.get_animal_sprite(
+                animal.animal_id, evolution_stage=stage,
+                max_width=sprite_area.w, max_height=sprite_area.h)
+        if sprite:
+            spr_rect = sprite.get_rect(center=sprite_area.center)
+            self.screen.blit(sprite, spr_rect)
+            pygame.draw.rect(self.screen, SERTAO_BORDER, spr_rect, 1,
+                             border_radius=6)
+        else:
+            emoji = ANIMAL_EMOJIS.get(animal.animal_id, "?")
+            draw_text_centered(self.screen, emoji, sprite_area.centerx,
+                               sprite_area.centery, 90, SERTAO_CREAM)
+
+        name_y = sprite_area.bottom + 24
+        draw_text_centered(self.screen, animal.name, rect.centerx, name_y,
+                           26, SERTAO_GOLD)
+        draw_text_centered(self.screen, f"Nivel {animal.level}", rect.centerx,
+                           name_y + 30, 20, SERTAO_CREAM)
+        draw_text_centered(self.screen, animal.role, rect.centerx,
+                           name_y + 56, 17, SERTAO_LIGHT)
+
+        pygame.draw.line(self.screen, SERTAO_BORDER,
+                         (rect.x + 24, name_y + 78),
+                         (rect.right - 24, name_y + 78), 1)
+        stage_name = EVOLUTION_STAGE_NAMES[
+            min(stage, len(EVOLUTION_STAGE_NAMES) - 1)]
+        draw_text_centered(self.screen, stage_name, rect.centerx,
+                           name_y + 101, 17, SERTAO_GREEN)
+
     def _render_level_up(self):
         self.assets.draw_background(self.screen, "level_up")
 
@@ -1821,20 +1977,21 @@ class Game:
                            SCREEN_WIDTH // 2, 55, 44, SERTAO_GOLD)
 
         target = self.current_level_up_animal or (self.party[0] if self.party else None)
-        if target:
-            emoji = ANIMAL_EMOJIS.get(target.animal_id, "")
-            draw_text_centered(self.screen,
-                               f"{emoji} {target.name} Lv.{target.level} - Escolha uma evolucao:",
-                               SCREEN_WIDTH // 2, 110, 22, SERTAO_CREAM)
+        draw_text_centered(self.screen, "Escolha uma melhoria para o seu animal",
+                           SCREEN_WIDTH // 2, 104, 22, SERTAO_CREAM)
 
         remaining = len(self.pending_level_up_animals)
         if remaining > 1:
             draw_text_centered(self.screen,
                                f"({remaining} evolucoes pendentes)",
-                               SCREEN_WIDTH // 2, 160, 18, SERTAO_LIGHT)
+                               SCREEN_WIDTH // 2, 140, 18, SERTAO_LIGHT)
+
+        layout = self._level_up_layout()
+
+        if target:
+            self._draw_level_up_portrait(target, layout["portrait"])
 
         if self.level_up_offers:
-            layout = self._level_up_layout()
             for i, upgrade in enumerate(self.level_up_offers):
                 btn_rect = layout["buttons"][i]
                 is_hovered = (self.level_up_hover == i)
@@ -1852,11 +2009,13 @@ class Game:
                 cat_colors = {"offense": RED, "defense": BLUE, "utility": GREEN}
                 cat_color = cat_colors.get(upgrade["category"], GRAY)
 
-                icon_rect = pygame.Rect(btn_rect.x + 15, btn_rect.y + 15, 50, 50)
-                pygame.draw.rect(self.screen, cat_color, icon_rect, border_radius=10)
+                icon_rect = pygame.Rect(btn_rect.x + 18, btn_rect.centery - 23,
+                                        46, 46)
+                _draw_category_icon(self.screen, upgrade["category"],
+                                    icon_rect, cat_color)
 
-                content_rect = pygame.Rect(btn_rect.x + 80, btn_rect.y + 10,
-                                           btn_rect.w - 100, btn_rect.h - 20)
+                content_rect = pygame.Rect(btn_rect.x + 84, btn_rect.y + 10,
+                                           btn_rect.w - 104, btn_rect.h - 20)
                 draw_text_block_colored(
                     self.screen,
                     [(upgrade["name"], 26, SERTAO_CREAM),
