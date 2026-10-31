@@ -31,6 +31,16 @@ UI_BUTTON_MAP = {
     "missoes": "Missoes.png",
 }
 
+MAIN_MENU_BUTTON_MAP = {
+    "play": "MenuJogar.png",
+    "how_to_play": "MenuSobre.png",
+    "bestiary": "MenuBestiario.png",
+    "quit": "MenuSair.png",
+    "achievements": "MenuConquistas.png",
+    "settings": "MenuConfiguracoes.png",
+    "acampamento": "MenuAcampamento.png",
+}
+
 NODE_ICON_MAP = {
     "combat": "node_combat.png",
     "elite": "node_elite.png",
@@ -42,12 +52,12 @@ NODE_ICON_MAP = {
 }
 
 BACKGROUND_MAP = {
-    "main_menu": "Telainicial.jpeg",
-    "how_to_play": "Telainicial.jpeg",
-    "animal_select": "Telainicial.jpeg",
-    "biome_select": "Telainicial.jpeg",
-    "settings": "Telainicial.jpeg",
-    "acampamento": "Telainicial.jpeg",
+    "main_menu": "TelainicialNova.jpeg",
+    "how_to_play": "TelainicialNova.jpeg",
+    "animal_select": "TelainicialNova.jpeg",
+    "biome_select": "TelainicialNova.jpeg",
+    "settings": "TelainicialNova.jpeg",
+    "acampamento": "TelainicialNova.jpeg",
     "map": "Mapadajornada.png",
     "combat": "Cenariodeluta.jpeg",
     "event": "Momento de escolha.jpeg",
@@ -56,6 +66,18 @@ BACKGROUND_MAP = {
     "level_up": "Momento de escolha.jpeg",
     "rescue": "Momento de escolha.jpeg",
     "cage_reward": "Momento de escolha.jpeg",
+}
+
+# Region-specific art for the journey map.  The generic map stays as the
+# fallback for any biome that does not have dedicated art yet.
+MAP_BACKGROUND_MAP = {
+    "caatinga": "MapaCaatinga.jpeg",
+    "cerrado": "MapaCerrado.jpeg",
+    "pantanal": "MapaPantanal.jpeg",
+    "mata_atlantica": "MapaMataAtlantica.jpeg",
+    "pampa": "MapaPampa.jpeg",
+    "amazonia": "MapaAmazonia.jpeg",
+    "boss": "MapaChefeFase.jpeg",
 }
 
 
@@ -165,6 +187,28 @@ class AssetManager:
         self._surfaces_cache[cache_key] = scaled
         return scaled
 
+    def get_main_menu_button(self, action, target_width=380):
+        """Return a cached main-menu button image for ``action``."""
+        filename = MAIN_MENU_BUTTON_MAP.get(action)
+        if filename is None:
+            print(f"[AssetManager] Botao de menu nao mapeado: '{action}'")
+            return None
+
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Arquivo de botao de menu ausente: {filename}")
+            return None
+
+        cache_key = f"menubtn_{filename}_{target_width}"
+        if cache_key in self._surfaces_cache:
+            return self._surfaces_cache[cache_key]
+
+        w, h = img.get_size()
+        target_height = max(1, int(h * target_width / w))
+        scaled = pygame.transform.smoothscale(img, (target_width, target_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
+
     def get_node_icon(self, node_type, target_height=52):
         """Return a cached map-node icon scaled to ``target_height``.
 
@@ -205,6 +249,32 @@ class AssetManager:
             return None
 
         cache_key = f"bg_{filename}_{screen_width}_{screen_height}"
+        if cache_key in self._surfaces_cache:
+            return self._surfaces_cache[cache_key]
+
+        scaled = pygame.transform.smoothscale(img, (screen_width, screen_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
+
+    def get_map_background(self, biome_id, boss_phase, screen_width, screen_height):
+        """Return the journey map art for a biome, or the boss art.
+
+        When the biome has no dedicated art (or the file is missing), the
+        generic journey map is used so older saves and future biomes keep
+        working.
+        """
+        key = "boss" if boss_phase else biome_id
+        filename = MAP_BACKGROUND_MAP.get(key)
+
+        img = self._cache.get(filename) if filename else None
+        if img is None:
+            filename = BACKGROUND_MAP["map"]
+            img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Fundo de mapa ausente: {filename}")
+            return None
+
+        cache_key = f"mapbg_{filename}_{screen_width}_{screen_height}"
         if cache_key in self._surfaces_cache:
             return self._surfaces_cache[cache_key]
 
