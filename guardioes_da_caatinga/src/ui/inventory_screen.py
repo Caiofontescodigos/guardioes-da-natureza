@@ -275,6 +275,8 @@ class InventoryScreen:
 
     # ------------------------------------------------------------- helpers
     def _can_use_potion(self, key):
+        if not self.party:
+            return False
         counts = self._potion_counts()
         if counts.get(key, 0) <= 0:
             return False

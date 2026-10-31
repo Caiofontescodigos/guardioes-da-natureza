@@ -1833,6 +1833,8 @@ class Game:
         """Consume one potion and apply its effect. Returns True on success."""
         if key not in ("health", "defense", "attack"):
             return False
+        if not self.party:
+            return False
         potions = self._potion_inventory()
         if potions.get(key, 0) <= 0:
             return False
