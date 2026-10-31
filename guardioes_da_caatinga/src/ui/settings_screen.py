@@ -120,6 +120,10 @@ class SettingsScreen:
         self.mute_toggle = ToggleControl(
             "music_muted", "Mudo", False,
             pygame.Rect(row_x, row_y + 84, row_w, 46))
+        self.music_box_button = ActionButton(
+            "open_music_box", "Caixa de musica",
+            pygame.Rect(row_x, row_y + 146, row_w, 46),
+            color=(70, 55, 30), font_size=20)
 
         row_x = self.columns[2][1].x + 18
         self.speed_seg = SegmentedControl(
@@ -197,6 +201,10 @@ class SettingsScreen:
                 self._exit_dialog.open(action="return_to_main_menu")
                 return None
 
+        result = self.music_box_button.handle_event(event)
+        if result:
+            return result
+
         result = self.back_button.handle_event(event)
         if result:
             return result
@@ -249,6 +257,7 @@ class SettingsScreen:
                       color=(160, 140, 110))
 
         self._draw_section(surface, self.data_panel, "DADOS")
+        self.music_box_button.draw(surface)
         self.reset_button.draw(surface)
         if getattr(self, 'return_menu_button', None):
             self.return_menu_button.draw(surface)

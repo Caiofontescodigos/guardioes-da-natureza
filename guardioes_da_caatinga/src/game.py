@@ -217,6 +217,8 @@ class Game:
 
         self.map_ui = None
         self.inventory_screen = None
+        self.music_box_screen = None
+        self._music_box_return_state = None
         self._overlay_return_state = None
         self.combat_ui = None
         self.level_up_offers = None
@@ -447,7 +449,7 @@ class Game:
                     self.map_generator = restored
                     self.map_ui = None
                     self._run_start_time = time.time()
-                    self.music_manager.start_playlist()
+                    self.music_manager.play_journey(new_track=True)
                     self.state = GameState.MAP
                     return
             except Exception as e:
@@ -569,11 +571,7 @@ class Game:
         self.achievement_manager.set_flag("game_over_pending", True)
         self._save_permanent_data()
         try:
-            # If leaving journey, stop journey music and go to menu music
-            self.music_manager.stop()
-            self.music_manager.menu_mode = True
-            self.music_manager.is_playlist_mode = False
-            self.music_manager.boss_mode = False
+            # The run is over: leave every journey/boss context behind.
             self.music_manager.play_menu_music()
         except Exception:
             pass
@@ -781,18 +779,15 @@ class Game:
                             self.state = GameState.MAP
                         else:
                             self.state = GameState.MAIN_MENU
-                            try:
-                                self.music_manager.play_menu_music()
-                            except Exception:
-                                pass
                     else:
                         self.state = GameState.MAIN_MENU
-                        try:
-                            self.music_manager.play_menu_music()
-                        except Exception:
-                            pass
                     self._settings_origin = None
                     self._settings_prev_state = None
+                    # Restore the track of the real screen; the manager does
+                    # not restart a track that is already playing.
+                    self._sync_music_to_context()
+                elif result[1] == "open_music_box":
+                    self._open_music_box()
                 elif result[1] == "reset_defaults":
                     self._reset_settings()
                 elif result[1] == "return_to_main_menu":
@@ -819,18 +814,15 @@ class Game:
                         self.state = GameState.MAP
                     else:
                         self.state = GameState.MAIN_MENU
-                    self._settings_origin = None
-                    self._settings_prev_state = None
-                    return
                 else:
                     self.state = GameState.MAIN_MENU
-                    try:
-                        self.music_manager.play_menu_music()
-                    except Exception:
-                        pass
-                    self._settings_origin = None
-                    self._settings_prev_state = None
-                    return
+                self._settings_origin = None
+                self._settings_prev_state = None
+                self._sync_music_to_context()
+                return
+
+        elif self.state == GameState.MUSIC_BOX:
+            self._handle_music_box_events(event)
 
         elif self.state == GameState.ACAMPAMENTO:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
@@ -1012,8 +1004,7 @@ class Game:
                 else:
                     self._save_permanent_data()
                     try:
-                        self.music_manager.stop()
-                        self.music_manager.resume_playlist()
+                        self.music_manager.play_journey()
                     except Exception:
                         pass
                     self.state = GameState.MAP
@@ -1073,7 +1064,7 @@ class Game:
                         self.pending_cage_animal = None
                     self._save_permanent_data()
                     self.victory_message = f"Vitoria! +{self.victory_xp_gained} XP, +{self.victory_gold_gained} Gold"
-                    self.music_manager.resume_playlist()
+                    self.music_manager.play_journey()
                     if self.state != GameState.SWAP_ANIMAL:
                         self.state = GameState.VICTORY
 
@@ -1108,16 +1099,48 @@ class Game:
         self._overlay_return_state = return_state
         self.state = GameState.INVENTORY
 
+    def _current_boss_id(self):
+        if not self.combat_system:
+            return None
+        for enemy in getattr(self.combat_system, "enemies", []):
+            if getattr(enemy, "is_boss", False):
+                return getattr(enemy, "enemy_id", None)
+        return None
+
+    def _sync_music_to_context(self):
+        """Play the track that belongs to the current screen/context.
+
+        Safe to call repeatedly: the manager ignores a request for the same
+        track in the same context, so navigation never restarts the song.
+        """
+        state = self.state
+        if state == GameState.SETTINGS and self._settings_prev_state is not None:
+            state = self._settings_prev_state
+
+        try:
+            if state == GameState.COMBAT and self.combat_system:
+                boss_id = self._current_boss_id()
+                if boss_id:
+                    self.music_manager.play_boss(boss_id)
+                else:
+                    # Common/elite combat keeps the held journey track.
+                    self.music_manager.hold_journey()
+            elif self.map_generator is not None and state not in (
+                    GameState.MAIN_MENU, GameState.HOW_TO_PLAY,
+                    GameState.SAVES, GameState.ANIMAL_SELECT,
+                    GameState.BIOME_SELECT, GameState.GAME_OVER):
+                self.music_manager.play_journey()
+            else:
+                self.music_manager.play_menu_music()
+        except Exception:
+            pass
+
     def _close_overlay_screen(self):
         """Return from bestiary/achievements/inventory to wherever it was opened."""
         target = self._overlay_return_state or GameState.MAIN_MENU
         self._overlay_return_state = None
         self.state = target
-        if target != GameState.MAP:
-            try:
-                self.music_manager.play_menu_music()
-            except Exception:
-                pass
+        self._sync_music_to_context()
 
     def _open_settings(self, origin=None):
         self.settings_screen.sync(self.global_settings)
@@ -1146,6 +1169,45 @@ class Game:
 
     def _open_how_to_play(self):
         self.state = GameState.HOW_TO_PLAY
+
+    def _open_music_box(self):
+        """Open the music box on top of the settings screen."""
+        from src.ui.music_box import MusicBoxScreen
+        self._music_box_return_state = GameState.SETTINGS
+        if self.music_box_screen is None:
+            self.music_box_screen = MusicBoxScreen(
+                self.music_manager, self.assets, self.global_settings)
+        else:
+            self.music_box_screen.sync(self.global_settings)
+        self.state = GameState.MUSIC_BOX
+
+    def _handle_music_box_events(self, event):
+        if not self.music_box_screen:
+            self.state = self._music_box_return_state or GameState.SETTINGS
+            return
+        result = self.music_box_screen.handle_event(event)
+        if result is None:
+            return
+        if result == "back":
+            target = self._music_box_return_state or GameState.SETTINGS
+            self.music_box_screen = None
+            self.state = target
+            # Leave the manual preview and restore the real game context.
+            self._sync_music_to_context()
+            return
+        if not isinstance(result, tuple):
+            return
+        kind = result[0]
+        if kind == "play":
+            self.music_manager.play_manual(result[1])
+        elif kind == "toggle_pause":
+            self.music_manager.toggle_pause()
+        elif kind == "stop":
+            self.music_manager.stop()
+        elif kind == "volume":
+            self._apply_setting("music_volume", result[1], result[2])
+            if self.music_box_screen:
+                self.music_box_screen.sync(self.global_settings)
 
     def _open_journey_select(self):
         from src.ui.menu import JourneySelectScreen
@@ -1262,9 +1324,7 @@ class Game:
             pass
         try:
             self.music_manager.stop()
-            self.music_manager.menu_mode = True
-            self.music_manager.is_playlist_mode = False
-            self.music_manager.boss_mode = False
+            self.music_manager.play_menu_music()
         except Exception:
             pass
         # clear journey state
@@ -1345,12 +1405,9 @@ class Game:
         self.pending_bonus_rescue = None
         self._run_start_time = time.time()
         try:
-            # Ensure only journey music plays, no other music instances
-            self.music_manager.stop()
-            self.music_manager.is_playlist_mode = False
-            self.music_manager.boss_mode = False
-            self.music_manager.menu_mode = False
-            self.music_manager.start_playlist()
+            # Single manager, explicit journey context: each new map/biome gets
+            # a fresh random journey track.
+            self.music_manager.play_journey(new_track=True)
         except Exception:
             pass
         self.state = GameState.MAP
@@ -1434,8 +1491,6 @@ class Game:
         spawn_weights = biome_data.get("spawn_weights", None)
         min_level, max_level = level_range
 
-        # Do not stop journey music during combat
-
         if is_boss:
             level = max_level + 2
             enemies = [create_boss(self.current_biome, level)]
@@ -1458,16 +1513,16 @@ class Game:
             show_damage_numbers=self.global_settings.get("show_damage_numbers", True),
             show_combat_log=self.global_settings.get("show_combat_log", True),
         )
-        # Ensure journey music continues during battle
         try:
-            if hasattr(self.music_manager, 'boss_mode'):
-                self.music_manager.boss_mode = False
-            # make sure playlist mode is active if not already
-            if not getattr(self.music_manager, 'is_playlist_mode', False):
-                self.music_manager.start_playlist()
-            # if somehow stopped, restart playlist
-            if not getattr(self.music_manager, '_playing_filename', None) and getattr(self.music_manager, 'enabled', True):
-                self.music_manager.start_playlist()
+            boss_id = self._current_boss_id()
+            if boss_id or is_boss:
+                # Only boss fights switch to a dedicated battle track.
+                self.music_manager.play_boss(boss_id)
+            else:
+                # Common and elite fights keep the exact journey track that
+                # was already playing; the playlist is held so it cannot
+                # change in the middle of the battle.
+                self.music_manager.hold_journey()
         except Exception:
             pass
         self.state = GameState.COMBAT
@@ -1483,6 +1538,13 @@ class Game:
 
     def _resolve_combat_rewards(self):
         if self.combat_system.player_won:
+            # The fight is over: resume the exploration track that was held
+            # during the battle.  Journey music only changes at map changes or
+            # when the current track ends.
+            try:
+                self.music_manager.play_journey()
+            except Exception:
+                pass
             rewards = self.combat_system.get_rewards()
             xp_multiplier = self.node_xp_bonus
             gold_multiplier = self.node_gold_bonus
@@ -1591,16 +1653,10 @@ class Game:
                 return
         self.victory_message = message
         self.victory_time = time.time()
-        # Keep current journey music playing
-        try:
-            if hasattr(self.music_manager, 'boss_mode') and self.music_manager.boss_mode:
-                self.music_manager.boss_mode = False
-                self.music_manager.is_playlist_mode = True
-            if not getattr(self.music_manager, 'is_playlist_mode', False) and getattr(self.music_manager, 'enabled', True):
-                self.music_manager.start_playlist()
-        except Exception:
-            pass
         self.state = GameState.VICTORY
+        # Return to exploration music after the fight without restarting the
+        # journey track when it is already the active one.
+        self._sync_music_to_context()
 
     def _start_next_level_up(self):
         if not self.pending_level_up_animals:
@@ -2197,6 +2253,7 @@ class Game:
             GameState.ANIMAL_SELECT: lambda: self.animal_select.draw(self.screen),
             GameState.BIOME_SELECT: lambda: self.biome_select.draw(self.screen),
             GameState.SETTINGS: lambda: self.settings_screen.draw(self.screen),
+            GameState.MUSIC_BOX: lambda: self.music_box_screen.draw(self.screen) if self.music_box_screen else None,
             GameState.ACAMPAMENTO: lambda: self.acampamento_screen.draw(self.screen) if self.acampamento_screen else None,
             GameState.BESTIARY: lambda: self.bestiary_screen.draw(self.screen) if self.bestiary_screen else None,
             GameState.ACHIEVEMENTS: lambda: self.achievements_screen.draw(self.screen) if self.achievements_screen else None,
