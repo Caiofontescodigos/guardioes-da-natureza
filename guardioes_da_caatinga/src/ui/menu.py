@@ -7,7 +7,7 @@ from src.ui.layout import (UILayout, LayoutArea, draw_sertao_panel, draw_sertao_
                            draw_text, CENTER_X, CENTER_Y, SAFE_MARGIN,
                            SERTAO_DARK, SERTAO_PANEL, SERTAO_BORDER, SERTAO_LIGHT,
                            SERTAO_CREAM, SERTAO_GOLD, SERTAO_RED, SERTAO_GREEN,
-                           get_mouse_pos, get_button_metrics, make_centered_column,
+                           get_mouse_pos, get_button_metrics,
                            make_centered_tabs, make_back_button)
 from src.ui.text import (get_font, wrap_text_chars, wrap_text, draw_text_centered,
                          draw_text_block_colored, draw_text_right)
@@ -46,22 +46,56 @@ class MainMenu:
         ("SAIR", "quit"),
     ]
 
+    BUTTON_WIDTH = 380
+    BUTTON_GAP = 6
+    COLUMN_CENTER_Y = 415
+
     def __init__(self, assets=None, achievement_manager=None):
         self.assets = assets
         self.achievement_manager = achievement_manager
         self.hover_index = -1
         self.layout = UILayout()
+        self._hover_cache = {}
         self._build()
 
     def _build(self):
         self.metrics = get_button_metrics("menu")
-        rects = make_centered_column(
-            len(self.ENTRIES), self.metrics,
-            center_y=self.layout.body.center_y, offset_y=45)
-        self.buttons = [
-            {"rect": rect, "label": label, "action": action}
-            for rect, (label, action) in zip(rects, self.ENTRIES)
-        ]
+        images = []
+        heights = []
+        for _label, action in self.ENTRIES:
+            image = None
+            if self.assets is not None:
+                image = self.assets.get_main_menu_button(
+                    action, self.BUTTON_WIDTH)
+            images.append(image)
+            heights.append(image.get_height() if image is not None
+                           else self.metrics.height)
+
+        total = sum(heights) + self.BUTTON_GAP * (len(self.ENTRIES) - 1)
+        y = self.COLUMN_CENTER_Y - total // 2
+
+        self.buttons = []
+        for (label, action), image, height in zip(
+                self.ENTRIES, images, heights):
+            width = image.get_width() if image is not None else self.metrics.width
+            rect = pygame.Rect(CENTER_X - width // 2, y, width, height)
+            self.buttons.append({
+                "rect": rect,
+                "label": label,
+                "action": action,
+                "image": image,
+            })
+            y += height + self.BUTTON_GAP
+
+    def _hover_image(self, image):
+        """Brighten a button image once and cache the result."""
+        key = id(image)
+        cached = self._hover_cache.get(key)
+        if cached is None:
+            cached = image.copy()
+            cached.fill((42, 34, 16, 0), special_flags=pygame.BLEND_RGB_ADD)
+            self._hover_cache[key] = cached
+        return cached
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -83,30 +117,61 @@ class MainMenu:
             surface.fill(SERTAO_DARK)
 
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 100))
+        overlay.fill((0, 0, 0, 30))
         surface.blit(overlay, (0, 0))
 
         for i, b in enumerate(self.buttons):
-            draw_sertao_button(surface, b["rect"], b["label"],
-                               is_hovered=(self.hover_index == i),
-                               font_size=self.metrics.font_size)
+            hovered = (self.hover_index == i)
+            image = b["image"]
+            if image is not None:
+                if hovered:
+                    image = self._hover_image(image)
+                surface.blit(image, b["rect"].topleft)
+                if hovered:
+                    underline = pygame.Surface((b["rect"].w, 5),
+                                               pygame.SRCALPHA)
+                    pygame.draw.rect(
+                        underline, (255, 214, 90, 200),
+                        (b["rect"].w // 4, 0, b["rect"].w // 2, 3),
+                        border_radius=2)
+                    surface.blit(underline,
+                                 (b["rect"].x, b["rect"].bottom - 5))
+            else:
+                draw_sertao_button(surface, b["rect"], b["label"],
+                                   is_hovered=hovered,
+                                   font_size=self.metrics.font_size)
 
         fv = get_font(18)
+        footer_panel = pygame.Surface((300, 46), pygame.SRCALPHA)
+        pygame.draw.rect(footer_panel, (10, 8, 5, 110),
+                         (0, 0, 300, 46), border_radius=10)
+        pygame.draw.rect(footer_panel, (150, 110, 50, 110),
+                         (0, 0, 300, 46), 1, border_radius=10)
+        surface.blit(footer_panel,
+                     footer_panel.get_rect(
+                         center=(CENTER_X, self.layout.footer.center_y)))
         if self.achievement_manager is not None:
             title = self.achievement_manager.current_title()
             ft = get_font(16)
             title_surf = ft.render(f"Titulo: {title}", True, SERTAO_GOLD)
             title_rect = title_surf.get_rect(
                 center=(CENTER_X, self.layout.footer.center_y - 10))
+            shadow = ft.render(f"Titulo: {title}", True, BLACK)
+            surface.blit(shadow, title_rect.move(1, 2))
             surface.blit(title_surf, title_rect)
-            vs = fv.render("Versao 1.0", True, GRAY)
+            vs = fv.render("Versao 1.0", True, SERTAO_CREAM)
             version_rect = vs.get_rect(
                 center=(CENTER_X, self.layout.footer.center_y + 12))
+            vs_shadow = fv.render("Versao 1.0", True, BLACK)
+            surface.blit(vs_shadow, version_rect.move(1, 2))
             surface.blit(vs, version_rect)
         else:
-            vs = fv.render("Versao 1.0", True, GRAY)
-            surface.blit(vs, vs.get_rect(
-                center=(CENTER_X, self.layout.footer.center_y)))
+            vs = fv.render("Versao 1.0", True, SERTAO_CREAM)
+            version_rect = vs.get_rect(
+                center=(CENTER_X, self.layout.footer.center_y))
+            vs_shadow = fv.render("Versao 1.0", True, BLACK)
+            surface.blit(vs_shadow, version_rect.move(1, 2))
+            surface.blit(vs, version_rect)
 
 
 class AnimalSelectScreen:
@@ -1077,9 +1142,11 @@ class BiomeSelectScreen:
 
     def _build(self):
         self.buttons = []
-        bw, bh = 600, 72
-        gap = 12
+        bw = 600
+        gap = 10 if len(self.biomes) >= 7 else 12
         count = len(self.biomes)
+        available_h = self.layout.body.h - 30
+        bh = min(72, max(56, (available_h - (count - 1) * gap) // max(count, 1)))
         total = count * bh + (count - 1) * gap
         sy = self.layout.body.y + (self.layout.body.h - total) // 2
 
@@ -1136,9 +1203,9 @@ class BiomeSelectScreen:
                 bdr = GRAY
             pygame.draw.rect(surface, bdr, r, 2, border_radius=10)
 
-            draw_text(surface, b["biome"]["name"], (r.x + 20, r.y + 15),
+            draw_text(surface, b["biome"]["name"], (r.x + 20, r.y + (8 if r.h < 70 else 15)),
                       font_size=26, color=SERTAO_CREAM)
-            draw_text(surface, b["biome"]["description"], (r.x + 20, r.y + 48),
+            draw_text(surface, b["biome"]["description"], (r.x + 20, r.y + (34 if r.h < 70 else 48)),
                       font_size=17, color=SERTAO_CREAM)
             if not b["unlocked"]:
                 draw_text(surface, "Bloqueado", (r.right - 100, r.y + 28),

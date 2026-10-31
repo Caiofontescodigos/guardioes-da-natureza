@@ -196,9 +196,22 @@ class MapUI:
         else:
             self.tooltip_alpha = 0
 
+    def _is_boss_phase(self):
+        """True once the boss node is reachable on the current map."""
+        return any(
+            node.node_type == NodeType.BOSS and node.available and not node.blocked
+            for node in self.map_gen.nodes.values()
+        )
+
     def draw(self, surface):
         if self.assets:
-            self.assets.draw_background(surface, "map")
+            background = self.assets.get_map_background(
+                self.biome_id, self._is_boss_phase(),
+                surface.get_width(), surface.get_height())
+            if background:
+                surface.blit(background, (0, 0))
+            else:
+                self.assets.draw_background(surface, "map")
         else:
             biome_color = BIOME_COLORS.get(self.biome_id, (50, 50, 50))
             surface.fill(biome_color)
@@ -207,9 +220,7 @@ class MapUI:
                     c = tuple(max(0, v - 15) for v in biome_color)
                     pygame.draw.circle(surface, c, (x, y), 1)
 
-        biome_name = self.biome_id.replace('_', ' ').title()
-        draw_text(surface, f"Regiao: {biome_name}", (270, 118),
-                  font_size=18, color=(95, 60, 25))
+        self._draw_legend_backdrop(surface)
 
         for node_id, node in self.map_gen.nodes.items():
             if node_id in self.node_positions:
@@ -222,6 +233,16 @@ class MapUI:
         self._draw_legend(surface)
         self._draw_buttons(surface)
         self._draw_tooltip(surface)
+
+    def _draw_legend_backdrop(self, surface):
+        """Translucent strip that keeps the legend readable over the art."""
+        rect = pygame.Rect(170, SCREEN_HEIGHT - 94, 1100, 56)
+        panel = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        pygame.draw.rect(panel, (15, 12, 8, 150),
+                         (0, 0, rect.w, rect.h), border_radius=8)
+        pygame.draw.rect(panel, (130, 95, 45, 170),
+                         (0, 0, rect.w, rect.h), 1, border_radius=8)
+        surface.blit(panel, rect.topleft)
 
     def _draw_connections(self, surface, node):
         start_pos = self.node_positions.get(node.node_id)
