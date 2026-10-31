@@ -13,6 +13,7 @@
         "cerrado",
         "pantanal",
         "mata_atlantica",
+        "pampa",
         "amazonia"
     ],
     "permanent_upgrades": {
@@ -206,8 +207,8 @@
         "show_combat_log": true,
         "confirm_quit": true
     },
-    "play_time": 12881.985492706299,
-    "last_save_time": 1793408633.8179138,
+    "play_time": 13420.294095039368,
+    "last_save_time": 1793455466.3223252,
     "run_active": true,
     "run": {
         "current_biome": "pantanal",
@@ -683,5 +684,10 @@
                 }
             }
         }
+    },
+    "potions": {
+        "health": 0,
+        "defense": 0,
+        "attack": 0
     }
 }
