@@ -86,8 +86,8 @@
                 "dodge": 8
             },
             "skills": ["calmaria", "banho_terapeutico", "onda_de_paz"],
-            "unlock_biome": "pantanal",
-            "rescue_description": "Encontre no Pantanal, escondida entre as águas quentes das nascentes.",
+            "unlock_biome": "pampa",
+            "rescue_description": "Encontre no Pampa, escondida entre os campos abertos do sul.",
             "rarity": "Lendário"
         },
         "onca_pintada": {

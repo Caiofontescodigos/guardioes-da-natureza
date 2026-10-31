@@ -136,6 +136,13 @@ class SaveManager:
                 potions[potion_key] = max(0, int(potions.get(potion_key) or 0))
             except (TypeError, ValueError):
                 potions[potion_key] = 0
+        unlocked_biomes = data.get("unlocked_biomes")
+        if isinstance(unlocked_biomes, list):
+            # Pampa was inserted before Amazonia.  Players who already
+            # unlocked Amazonia should also have access to the new region.
+            if "amazonia" in unlocked_biomes and "pampa" not in unlocked_biomes:
+                index = unlocked_biomes.index("amazonia")
+                unlocked_biomes.insert(index, "pampa")
         self._normalize_animal_evolution(data)
 
     def _normalize_animal_evolution(self, data):

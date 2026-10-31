@@ -1640,7 +1640,7 @@ class Game:
         return False
 
     def _get_next_biome(self):
-        biomes_order = ["caatinga", "cerrado", "pantanal", "mata_atlantica", "amazonia"]
+        biomes_order = ["caatinga", "cerrado", "pantanal", "mata_atlantica", "pampa", "amazonia"]
         idx = biomes_order.index(self.current_biome) if self.current_biome in biomes_order else -1
         if 0 <= idx < len(biomes_order) - 1:
             return biomes_order[idx + 1]

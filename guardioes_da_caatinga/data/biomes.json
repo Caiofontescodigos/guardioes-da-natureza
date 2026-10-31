@@ -40,8 +40,7 @@
             "unlocked_by_default": false,
             "nodes_per_floor": [1, 2, 3, 2, 1, 1],
             "floors": 6,
-            "rescue_animal": "arara_azul",
-            "bonus_rescue": "capivara"
+            "rescue_animal": "arara_azul"
         },
         "mata_atlantica": {
             "id": "mata_atlantica",
@@ -57,12 +56,26 @@
             "floors": 6,
             "rescue_animal": "tamandua_bandeira"
         },
+        "pampa": {
+            "id": "pampa",
+            "name": "Pampa",
+            "description": "Campos abertos do sul, varridos por ventos quentes e predadores flamejantes.",
+            "color": [120, 155, 80],
+            "enemy_level_range": [12, 15],
+            "enemy_types": ["espirito_de_fogo", "furacao", "lobo_de_fogo"],
+            "spawn_weights": {"espirito_de_fogo": 2, "furacao": 4, "lobo_de_fogo": 4},
+            "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],
+            "unlocked_by_default": false,
+            "nodes_per_floor": [1, 2, 3, 2, 1, 1],
+            "floors": 6,
+            "rescue_animal": "capivara"
+        },
         "amazonia": {
             "id": "amazonia",
             "name": "Amazonia",
             "description": "A ultima regiao, onde as criaturas mais perigosas residem.",
             "color": [20, 80, 30],
-            "enemy_level_range": [12, 15],
+            "enemy_level_range": [15, 18],
             "enemy_types": ["furacao", "lobo_de_fogo", "espirito_de_fogo"],
             "spawn_weights": {"furacao": 3, "lobo_de_fogo": 5, "espirito_de_fogo": 1},
             "bosses": ["lobo_alfa_de_fogo", "vendaval_de_fogo"],

@@ -87,6 +87,7 @@ BIOME_COLORS = {
     "cerrado": (180, 140, 60),
     "pantanal": (50, 120, 80),
     "mata_atlantica": (30, 100, 50),
+    "pampa": (120, 155, 80),
     "amazonia": (20, 80, 30)
 }
 
