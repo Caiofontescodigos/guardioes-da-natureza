@@ -24,6 +24,23 @@ ENEMY_SPRITE_MAP = {
     "vendaval_de_fogo": "VendavaldeFogo.png",
 }
 
+UI_BUTTON_MAP = {
+    "inicio": "Inicio.png",
+    "bestiario": "Bestiario.png",
+    "inventario": "Inventario.png",
+    "missoes": "Missoes.png",
+}
+
+NODE_ICON_MAP = {
+    "combat": "node_combat.png",
+    "elite": "node_elite.png",
+    "event": "node_event.png",
+    "camp": "node_camp.png",
+    "shop": "node_shop.png",
+    "boss": "node_boss.png",
+    "rescue_animal": "node_animal.png",
+}
+
 BACKGROUND_MAP = {
     "main_menu": "Telainicial.jpeg",
     "how_to_play": "Telainicial.jpeg",
@@ -31,7 +48,7 @@ BACKGROUND_MAP = {
     "biome_select": "Telainicial.jpeg",
     "settings": "Telainicial.jpeg",
     "acampamento": "Telainicial.jpeg",
-    "map": "Mapadajornada.jpeg",
+    "map": "Mapadajornada.png",
     "combat": "Cenariodeluta.jpeg",
     "event": "Momento de escolha.jpeg",
     "shop": "MercadoseuZé.jpeg",
@@ -121,6 +138,60 @@ class AssetManager:
 
     def get_enemy_sprite(self, enemy_id, max_width=140, max_height=140):
         return self.get_sprite(enemy_id, is_enemy=True, max_width=max_width, max_height=max_height, flip_horizontal=False)
+
+    def get_ui_button(self, name, target_width=190):
+        """Return a cached, proportionally scaled UI button image.
+
+        The button artwork lives in the same images directory as the rest of
+        the game art and is mapped by :data:`UI_BUTTON_MAP`.
+        """
+        filename = UI_BUTTON_MAP.get(name)
+        if filename is None:
+            print(f"[AssetManager] Botao de UI nao mapeado: '{name}'")
+            return None
+
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Arquivo de botao ausente: {filename}")
+            return None
+
+        cache_key = f"uibtn_{filename}_{target_width}"
+        if cache_key in self._surfaces_cache:
+            return self._surfaces_cache[cache_key]
+
+        w, h = img.get_size()
+        target_height = max(1, int(h * target_width / w))
+        scaled = pygame.transform.smoothscale(img, (target_width, target_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
+
+    def get_node_icon(self, node_type, target_height=52):
+        """Return a cached map-node icon scaled to ``target_height``.
+
+        ``node_type`` may be a :class:`NodeType` member or its string value.
+        The source art already has a transparent background (processed at
+        import time), so it can be blitted directly over the parchment.
+        """
+        key = getattr(node_type, "value", node_type)
+        filename = NODE_ICON_MAP.get(key)
+        if filename is None:
+            print(f"[AssetManager] Icone de no nao mapeado: '{key}'")
+            return None
+
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Arquivo de icone ausente: {filename}")
+            return None
+
+        cache_key = f"nodeicon_{filename}_{target_height}"
+        if cache_key in self._surfaces_cache:
+            return self._surfaces_cache[cache_key]
+
+        w, h = img.get_size()
+        target_width = max(1, int(w * target_height / h))
+        scaled = pygame.transform.smoothscale(img, (target_width, target_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
 
     def get_background(self, screen_key, screen_width, screen_height):
         filename = BACKGROUND_MAP.get(screen_key)
