@@ -24,6 +24,7 @@ class GameState(Enum):
     SWAP_ANIMAL = auto()
     EVOLUTION = auto()
     ACHIEVEMENTS = auto()
+    INVENTORY = auto()
 
 class NodeType(Enum):
     COMBAT = "combat"

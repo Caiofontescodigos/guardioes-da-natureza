@@ -84,6 +84,7 @@ class SaveManager:
             "permanent_upgrades": {},
             "animal_data": {},
             "active_party": [],
+            "potions": {"health": 0, "defense": 0, "attack": 0},
             "bestiary_discovered": ["tatu_bola"],
             "creatures_discovered": [],
             "statistics": {
@@ -126,6 +127,15 @@ class SaveManager:
             data["permanent_upgrades"] = {}
         if data.get("active_party") is None:
             data["active_party"] = []
+        potions = data.get("potions")
+        if not isinstance(potions, dict):
+            potions = {}
+            data["potions"] = potions
+        for potion_key in ("health", "defense", "attack"):
+            try:
+                potions[potion_key] = max(0, int(potions.get(potion_key) or 0))
+            except (TypeError, ValueError):
+                potions[potion_key] = 0
         self._normalize_animal_evolution(data)
 
     def _normalize_animal_evolution(self, data):
