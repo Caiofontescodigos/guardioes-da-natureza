@@ -216,6 +216,8 @@ class Game:
         self.current_event = None
 
         self.map_ui = None
+        self.inventory_screen = None
+        self._overlay_return_state = None
         self.combat_ui = None
         self.level_up_offers = None
         self.combat_rewards = None
@@ -256,24 +258,20 @@ class Game:
         self.swap_return_state = GameState.VICTORY
 
         self._run_start_time = 0
-        # potion icons
-        self._potion_icons = {}
-        try:
-            ui_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'ui')
-            ui_dir = os.path.normpath(ui_dir)
-            for key, fname in [('health', 'potion_health.png'), ('defense', 'potion_defense.png'), ('attack', 'potion_attack.png')]:
-                p = os.path.join(ui_dir, fname)
-                if os.path.exists(p):
-                    img = pygame.image.load(p).convert_alpha()
-                    self._potion_icons[key] = pygame.transform.scale(img, (24, 24))
-        except Exception:
-            pass
 
         from src.ui.controls import ConfirmDialog
         self.quit_dialog = ConfirmDialog(
             title="Sair do jogo",
             message="Deseja realmente sair? O progresso salvo sera mantido.",
             confirm_label="SAIR",
+            cancel_label="CANCELAR",
+            confirm_color=(150, 50, 40),
+        )
+        self.map_exit_dialog = ConfirmDialog(
+            title="Voltar ao inicio",
+            message="Deseja voltar ao menu principal? A jornada e salva "
+                    "automaticamente e pode ser retomada depois.",
+            confirm_label="VOLTAR",
             cancel_label="CANCELAR",
             confirm_color=(150, 50, 40),
         )
@@ -524,7 +522,8 @@ class Game:
         self.animal_select = AnimalSelectScreen(unlocked, self.assets, self.save_data or {})
         self.biome_select = BiomeSelectScreen(biomes, self.assets)
         self.settings_screen = SettingsScreen(self.assets, self.global_settings)
-        self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets)
+        self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets,
+                                              self.party)
         self.acampamento_screen = AcampamentoScreen(self.save_data or {}, self.assets, self.party)
         self.journey_select_screen = JourneySelectScreen(self.save_manager, self.assets)
         self.how_to_play_screen = HowToPlayScreen(self.assets)
@@ -848,38 +847,42 @@ class Game:
             self.handle_acampamento_events(event)
 
         elif self.state == GameState.BESTIARY:
+            result = None
             if self.bestiary_screen:
                 result = self.bestiary_screen.handle_event(event)
-                if result == "back":
-                    self.state = GameState.MAIN_MENU
-                    try:
-                        self.music_manager.play_menu_music()
-                    except Exception:
-                        pass
-            if (event.type == pygame.KEYDOWN
-                    and event.key == pygame.K_ESCAPE):
-                self.state = GameState.MAIN_MENU
-                try:
-                    self.music_manager.play_menu_music()
-                except Exception:
-                    pass
+            if result == "back" or (event.type == pygame.KEYDOWN
+                                    and event.key == pygame.K_ESCAPE):
+                self._close_overlay_screen()
 
         elif self.state == GameState.ACHIEVEMENTS:
+            result = None
             if self.achievements_screen:
                 result = self.achievements_screen.handle_event(event)
-                if result == "back":
-                    self.state = GameState.MAIN_MENU
-                    try:
-                        self.music_manager.play_menu_music()
-                    except Exception:
-                        pass
-            if (event.type == pygame.KEYDOWN
-                    and event.key == pygame.K_ESCAPE):
-                self.state = GameState.MAIN_MENU
-                try:
-                    self.music_manager.play_menu_music()
-                except Exception:
-                    pass
+            if result == "back":
+                self._close_overlay_screen()
+
+        elif self.state == GameState.INVENTORY:
+            result = None
+            if self.inventory_screen:
+                result = self.inventory_screen.handle_event(event)
+            if result == "back":
+                self._close_overlay_screen()
+            elif isinstance(result, tuple) and result and result[0] == "use_potion":
+                key = result[1]
+                used = self._use_inventory_potion(key)
+                if self.inventory_screen:
+                    self.inventory_screen.save_data = self.save_data or {}
+                    if used:
+                        labels = {
+                            "health": "Pocao de Vida usada!",
+                            "defense": "Pocao de Defesa usada!",
+                            "attack": "Pocao de Ataque usada!",
+                        }
+                        self.inventory_screen.set_feedback(
+                            labels.get(key, "Pocao usada!"))
+                    else:
+                        self.inventory_screen.set_feedback(
+                            "Nao foi possivel usar.", error=True)
 
         elif self.state == GameState.HOW_TO_PLAY:
             if self.how_to_play_screen:
@@ -1083,16 +1086,38 @@ class Game:
         self.acampamento_screen = AcampamentoScreen(self.save_data, self.assets, self.party)
         self.state = GameState.ACAMPAMENTO
 
-    def _open_bestiary(self):
+    def _open_bestiary(self, return_state=None):
         from src.ui.menu import BestiaryScreen
-        self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets)
+        self.bestiary_screen = BestiaryScreen(self.save_data or {}, self.assets,
+                                              self.party)
+        self._overlay_return_state = return_state
         self.state = GameState.BESTIARY
 
-    def _open_achievements(self):
+    def _open_achievements(self, initial_category="todas", return_state=None):
         from src.ui.achievements_screen import AchievementsScreen
         self.achievements_screen = AchievementsScreen(
-            self.achievement_manager, self.assets)
+            self.achievement_manager, self.assets,
+            initial_category=initial_category)
+        self._overlay_return_state = return_state
         self.state = GameState.ACHIEVEMENTS
+
+    def _open_inventory(self, return_state=None):
+        from src.ui.inventory_screen import InventoryScreen
+        self.inventory_screen = InventoryScreen(
+            self.save_data or {}, self.assets, self.party)
+        self._overlay_return_state = return_state
+        self.state = GameState.INVENTORY
+
+    def _close_overlay_screen(self):
+        """Return from bestiary/achievements/inventory to wherever it was opened."""
+        target = self._overlay_return_state or GameState.MAIN_MENU
+        self._overlay_return_state = None
+        self.state = target
+        if target != GameState.MAP:
+            try:
+                self.music_manager.play_menu_music()
+            except Exception:
+                pass
 
     def _open_settings(self, origin=None):
         self.settings_screen.sync(self.global_settings)
@@ -1245,6 +1270,12 @@ class Game:
         # clear journey state
         self.map_generator = None
         self.map_ui = None
+        self.inventory_screen = None
+        self._overlay_return_state = None
+        try:
+            self.map_exit_dialog.close()
+        except Exception:
+            pass
         self.combat_system = None
         self.combat_ui = None
         self.pending_level_ups = 0
@@ -1328,6 +1359,15 @@ class Game:
         if not self.map_ui:
             self.map_ui = MapUI(self.map_generator, self.current_biome, self.assets)
 
+        if self.map_exit_dialog.visible:
+            result = self.map_exit_dialog.handle_event(event)
+            if result == "confirm":
+                self.map_exit_dialog.close()
+                self._end_journey_to_main_menu()
+            elif result == "cancel":
+                self.map_exit_dialog.close()
+            return
+
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             # Open settings during journey instead of pause? Requirement says replace ESC during journey to open settings
             self._settings_origin = "journey"
@@ -1341,11 +1381,29 @@ class Game:
             self.state = GameState.SETTINGS
             return
 
-        node_id = self.map_ui.handle_event(event)
-        if node_id is not None:
-            node = self.map_generator.visit_node(node_id)
-            if node:
-                self.process_node(node)
+        result = self.map_ui.handle_event(event)
+        if not result:
+            return
+
+        kind, value = result
+        if kind == "action":
+            self._handle_map_button(value)
+            return
+
+        node = self.map_generator.visit_node(value)
+        if node:
+            self.process_node(node)
+
+    def _handle_map_button(self, action):
+        if action == "inicio":
+            self.map_exit_dialog.open(action="map_exit")
+        elif action == "bestiario":
+            self._open_bestiary(return_state=GameState.MAP)
+        elif action == "inventario":
+            self._open_inventory(return_state=GameState.MAP)
+        elif action == "missoes":
+            self._open_achievements(initial_category="jornada",
+                                    return_state=GameState.MAP)
 
     def process_node(self, node):
         if node.node_type == NodeType.COMBAT:
@@ -1694,9 +1752,9 @@ class Game:
         panel_y = (SCREEN_HEIGHT - panel_h) // 2
         panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
         items = [
-            ("Pocao de Vida", "Cura 30 HP a todos", 20),
-            ("Elixir de Forca", "+3 ATK por 3 batalhas", 25),
-            ("Escudo Leve", "+5 DEF por 3 batalhas", 25),
+            ("Pocao de Vida", "Vai para o inventario. Use na tela Inventario.", 20),
+            ("Pocao de Defesa", "Vai para o inventario. Use na tela Inventario.", 25),
+            ("Pocao de Ataque", "Vai para o inventario. Use na tela Inventario.", 25),
         ]
         buttons = [pygame.Rect(panel_x + 35, panel_y + 120 + i * 90,
                                panel_w - 70, 75) for i in range(len(items))]
@@ -1707,9 +1765,9 @@ class Game:
 
     def handle_shop_events(self, event):
         shop_items = [
-            ("Pocao de Vida", "Cura 30 HP a todos", 20, lambda: self._shop_heal_all(30)),
-            ("Elixir de Forca", "+3 ATK por 3 batalhas", 25, lambda: self._shop_buff_stat("attack", 3, 3)),
-            ("Escudo Leve", "+5 DEF por 3 batalhas", 25, lambda: self._shop_buff_stat("defense", 5, 3)),
+            ("Pocao de Vida", "Vai para o inventario. Use na tela Inventario.", 20, lambda: self._add_potion("health")),
+            ("Pocao de Defesa", "Vai para o inventario. Use na tela Inventario.", 25, lambda: self._add_potion("defense")),
+            ("Pocao de Ataque", "Vai para o inventario. Use na tela Inventario.", 25, lambda: self._add_potion("attack")),
         ]
         layout = self._shop_layout()
 
@@ -1738,17 +1796,59 @@ class Game:
                 self.state = GameState.MAP
                 self.map_ui = None
 
-    def _shop_heal_all(self, amount):
+    def _heal_party(self, amount):
         for animal in self.party:
             if animal.is_alive:
                 animal.heal(amount)
 
-    def _shop_buff_stat(self, stat, amount, duration):
+    def _apply_party_buff(self, stat, amount, duration):
         from src.state import BuffType
         buff_type = BuffType.ATTACK_UP if stat == "attack" else BuffType.DEFENSE_UP
         for animal in self.party:
             if animal.is_alive:
                 animal.apply_buff(buff_type, amount, duration)
+
+    def _potion_inventory(self):
+        """Return the mutable potion inventory, creating it when missing."""
+        if not isinstance(self.save_data, dict):
+            self.save_data = {}
+        potions = self.save_data.get("potions")
+        if not isinstance(potions, dict):
+            potions = {}
+            self.save_data["potions"] = potions
+        for key in ("health", "defense", "attack"):
+            try:
+                potions[key] = max(0, int(potions.get(key) or 0))
+            except (TypeError, ValueError):
+                potions[key] = 0
+        return potions
+
+    def _add_potion(self, key, amount=1):
+        if key not in ("health", "defense", "attack"):
+            return
+        potions = self._potion_inventory()
+        potions[key] = max(0, int(potions.get(key, 0)) + amount)
+
+    def _use_inventory_potion(self, key):
+        """Consume one potion and apply its effect. Returns True on success."""
+        if key not in ("health", "defense", "attack"):
+            return False
+        potions = self._potion_inventory()
+        if potions.get(key, 0) <= 0:
+            return False
+
+        if key == "health":
+            if not any(a.is_alive and a.hp < a.max_hp for a in self.party):
+                return False
+            self._heal_party(30)
+        elif key == "defense":
+            self._apply_party_buff("defense", 5, 3)
+        else:
+            self._apply_party_buff("attack", 3, 3)
+
+        potions[key] -= 1
+        self._save_permanent_data()
+        return True
 
     def start_camp(self):
         self.state = GameState.CAMP
@@ -2098,6 +2198,7 @@ class Game:
             GameState.ACAMPAMENTO: lambda: self.acampamento_screen.draw(self.screen) if self.acampamento_screen else None,
             GameState.BESTIARY: lambda: self.bestiary_screen.draw(self.screen) if self.bestiary_screen else None,
             GameState.ACHIEVEMENTS: lambda: self.achievements_screen.draw(self.screen) if self.achievements_screen else None,
+            GameState.INVENTORY: lambda: self.inventory_screen.draw(self.screen) if self.inventory_screen else None,
             GameState.HOW_TO_PLAY: lambda: self.how_to_play_screen.draw(self.screen) if self.how_to_play_screen else None,
             GameState.CAGE_REWARD: lambda: self.cage_reward_screen.draw(self.screen) if self.cage_reward_screen else None,
             GameState.MAP: self._render_map,
@@ -2158,90 +2259,7 @@ class Game:
         if not self.map_ui:
             self.map_ui = MapUI(self.map_generator, self.current_biome, self.assets)
         self.map_ui.draw(self.screen)
-        self._render_hud()
-
-    def _get_potion_counts(self):
-        counts = {"health": 0, "defense": 0, "attack": 0}
-        if self.save_data and isinstance(self.save_data, dict):
-            inv = self.save_data.get("inventory") or self.save_data.get("potions") or {}
-            if isinstance(inv, dict):
-                counts["health"] = int(inv.get("health_potion") or inv.get("health") or inv.get("pocao_vida") or 0)
-                counts["defense"] = int(inv.get("defense_potion") or inv.get("defense") or inv.get("pocao_defesa") or 0)
-                counts["attack"] = int(inv.get("attack_potion") or inv.get("attack") or inv.get("pocao_ataque") or inv.get("strength_potion") or 0)
-                return counts
-            if isinstance(inv, list):
-                for item in inv:
-                    if isinstance(item, dict):
-                        tid = (item.get("id") or item.get("type") or item.get("name") or "").lower()
-                        qty = int(item.get("quantity") or item.get("count") or 1)
-                        if "vida" in tid or "heal" in tid or tid == "health":
-                            counts["health"] += qty
-                        elif "def" in tid:
-                            counts["defense"] += qty
-                        elif "ataq" in tid or "atac" in tid or "forc" in tid or "str" in tid:
-                            counts["attack"] += qty
-                return counts
-        # also check party/global flags if present
-        return counts
-
-    def _render_hud(self):
-        if not self.party:
-            return
-        hud_rect = pygame.Rect(0, SCREEN_HEIGHT - 55, SCREEN_WIDTH, 55)
-        hud_surf = pygame.Surface((SCREEN_WIDTH, 55), pygame.SRCALPHA)
-        hud_surf.fill((20, 15, 10, 220))
-        self.screen.blit(hud_surf, (0, SCREEN_HEIGHT - 55))
-        pygame.draw.rect(self.screen, SERTAO_BORDER, hud_rect, 1)
-
-        x_offset = 15
-        for i, animal in enumerate(self.party):
-            emoji = ANIMAL_EMOJIS.get(animal.animal_id, "")
-            hp_color = GREEN if animal.hp > animal.max_hp * 0.5 else (YELLOW if animal.hp > animal.max_hp * 0.25 else RED)
-            draw_text(self.screen, f"{emoji} {animal.name} Lv.{animal.level}",
-                      (x_offset, SCREEN_HEIGHT - 45), font_size=17, color=SERTAO_CREAM)
-            draw_bar(self.screen, x_offset, SCREEN_HEIGHT - 25, 120, 14,
-                     animal.hp, animal.max_hp, hp_color)
-            x_offset += 160
-
-        draw_text(self.screen, f"Gold: {self.party[0].gold}",
-                  (x_offset + 10, SCREEN_HEIGHT - 45), font_size=18, color=SERTAO_GOLD)
-
-        # Potion indicators bottom-right
-        try:
-            counts = self._get_potion_counts()
-            potions = [
-                ("health", counts.get("health", 0)),
-                ("defense", counts.get("defense", 0)),
-                ("attack", counts.get("attack", 0)),
-            ]
-            icon_size = 24
-            gap = 6
-            panel_h = 34
-            panel_w = len(potions) * (icon_size + 38) + (len(potions) - 1) * gap + 16
-            panel_x = SCREEN_WIDTH - panel_w - 10
-            panel_y = SCREEN_HEIGHT - panel_h - 8
-            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-            p_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
-            pygame.draw.rect(p_surf, (20, 15, 10, 210), (0, 0, panel_w, panel_h), border_radius=8)
-            self.screen.blit(p_surf, panel_rect.topleft)
-            pygame.draw.rect(self.screen, SERTAO_BORDER, panel_rect, 1, border_radius=8)
-            px = panel_x + 10
-            py = panel_y + (panel_h - icon_size) // 2
-            font_small = get_font(16)
-            for key, qty in potions:
-                icon = self._potion_icons.get(key)
-                if icon:
-                    self.screen.blit(icon, (px, py))
-                else:
-                    # fallback small colored rect
-                    c = (40,200,60) if key == 'health' else ((60,120,255) if key == 'defense' else (255,60,60))
-                    pygame.draw.rect(self.screen, c, (px, py, icon_size, icon_size), border_radius=4)
-                    pygame.draw.rect(self.screen, (20,15,10), (px, py, icon_size, icon_size), 1, border_radius=4)
-                qty_surf = font_small.render(str(qty), True, SERTAO_CREAM)
-                self.screen.blit(qty_surf, (px + icon_size + 4, py + 4))
-                px += icon_size + 38 + gap
-        except Exception:
-            pass
+        self.map_exit_dialog.draw(self.screen)
 
     def _render_combat(self):
         if self.combat_ui and self.combat_system:
@@ -2308,7 +2326,7 @@ class Game:
                          (panel.x + 40, panel.y + 100),
                          (panel.x + panel.w - 40, panel.y + 100), 1)
 
-        item_colors = {0: GREEN, 1: RED, 2: BLUE}
+        item_colors = {0: GREEN, 1: BLUE, 2: RED}
         cost_labels = {0: 20, 1: 25, 2: 25}
         for i, (name, desc, cost) in enumerate(layout["items"]):
             btn_rect = layout["buttons"][i]

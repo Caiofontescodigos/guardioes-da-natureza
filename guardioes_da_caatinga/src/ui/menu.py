@@ -10,7 +10,8 @@ from src.ui.layout import (UILayout, LayoutArea, draw_sertao_panel, draw_sertao_
                            get_mouse_pos, get_button_metrics, make_centered_column,
                            make_centered_tabs, make_back_button)
 from src.ui.text import (get_font, wrap_text_chars, wrap_text, draw_text_centered,
-                         draw_text_block_colored)
+                         draw_text_block_colored, draw_text_right)
+from src.ui.components import draw_bar
 
 ANIMAL_EMOJIS = {
     "tatu_bola": "\U0001f994",
@@ -365,11 +366,12 @@ class AnimalSelectScreen:
 
 
 class BestiaryScreen:
-    def __init__(self, save_data=None, assets=None):
+    def __init__(self, save_data=None, assets=None, party=None):
         self.animals = load_animals()
         self.enemies = load_enemies()
         self.save_data = save_data or {}
         self.assets = assets
+        self.party = party or []
         self.animal_data = self.save_data.get("animal_data", {})
         self.unlocked_animals = self.save_data.get("unlocked_animals", [])
         self.bestiary_discovered = self.save_data.get("bestiary_discovered", [])
@@ -520,9 +522,59 @@ class BestiaryScreen:
         if detail_w > 100:
             self._draw_detail_panel(surface, detail_x, detail_y, detail_w, detail_h)
 
+        self._draw_party_strip(surface, grid_w)
+
         bh = self.back_button.collidepoint(get_mouse_pos())
         draw_sertao_button(surface, self.back_button, "Voltar", bh,
                            font_size=self.back_metrics.font_size)
+
+    def _draw_party_strip(self, surface, grid_w):
+        """Compact team summary moved from the journey map footer."""
+        grid_bottom = max(
+            (cell["rect"].bottom for cell in self.grid_rects),
+            default=self.layout.body.y + 120)
+        panel = pygame.Rect(CENTER_X - grid_w // 2, grid_bottom + 8,
+                            grid_w, 70)
+        panel.y = min(panel.y, SCREEN_HEIGHT - 150)
+        draw_sertao_panel(surface, panel.x, panel.y, panel.w, panel.h,
+                          alpha=200)
+
+        draw_text(surface, "SUA EQUIPE", (panel.x + 12, panel.y + 6),
+                  font_size=16, color=SERTAO_GOLD)
+        gold = self.party[0].gold if self.party else 0
+        draw_text_right(surface, "Gold: {}".format(gold),
+                        (panel.right - 12, panel.y + 6),
+                        font_size=16, color=SERTAO_GOLD)
+
+        if not self.party:
+            draw_text_centered(surface, "Nenhuma equipe ativa",
+                               panel.centerx, panel.y + 42, 15, GRAY)
+            return
+
+        col_w = (panel.w - 24) // 3
+        top = panel.y + 26
+        for index, animal in enumerate(self.party[:3]):
+            cx = panel.x + 12 + index * col_w
+            sprite = None
+            if self.assets:
+                sprite = self.assets.get_animal_sprite(
+                    animal.animal_id,
+                    evolution_stage=getattr(animal, "evolution_stage", 0),
+                    max_width=34, max_height=34)
+            if sprite:
+                surface.blit(sprite, (cx + 2, top + 2))
+            else:
+                draw_text_centered(surface, ANIMAL_EMOJIS.get(animal.animal_id, "?"),
+                                   cx + 19, top + 17, 20, SERTAO_CREAM)
+
+            draw_text(surface, "{} Lv.{}".format(animal.name, animal.level),
+                      (cx + 42, top), font_size=14, color=SERTAO_CREAM)
+            hp_color = (GREEN if animal.hp > animal.max_hp * 0.5
+                        else (YELLOW if animal.hp > animal.max_hp * 0.25 else RED))
+            draw_bar(surface, cx + 42, top + 20, col_w - 54, 9,
+                     animal.hp, animal.max_hp, hp_color)
+            draw_text(surface, "{}/{}".format(animal.hp, animal.max_hp),
+                      (cx + 42, top + 31), font_size=11, color=SERTAO_LIGHT)
 
     def _draw_cell(self, surface, cell, index):
         r = cell["rect"]

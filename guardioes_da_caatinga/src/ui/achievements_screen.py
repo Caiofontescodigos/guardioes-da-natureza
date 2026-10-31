@@ -84,10 +84,11 @@ def _draw_category_glyph(surface, category, cx, cy, color):
 
 
 class AchievementsScreen:
-    def __init__(self, manager, assets=None):
+    def __init__(self, manager, assets=None, initial_category="todas"):
         self.manager = manager
         self.assets = assets
-        self.category = "todas"
+        valid = {key for _, key in FILTERS}
+        self.category = initial_category if initial_category in valid else "todas"
         self.page = 0
         self.hover_filter = -1
         self.hover_card = -1
