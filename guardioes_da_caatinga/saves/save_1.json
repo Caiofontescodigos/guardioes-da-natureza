@@ -20,7 +20,8 @@
             "garras_afiadas",
             "golpe_critico",
             "velocidade_raio",
-            "instinto_selvagem"
+            "instinto_selvagem",
+            "reflexos_rapidos"
         ],
         "onca_pintada": [
             "recuperacao_natural",
@@ -28,7 +29,8 @@
             "velocidade_raio",
             "couraca",
             "reflexos_rapidos",
-            "golpe_critico"
+            "golpe_critico",
+            "sangue_quente"
         ],
         "lobo_guara": [
             "couraca",
@@ -44,7 +46,7 @@
     "animal_data": {
         "tatu_bola": {
             "level": 14,
-            "xp": 1516,
+            "xp": 6799,
             "xp_to_level": 9679,
             "base_attack": 21,
             "base_defense": 70,
@@ -52,7 +54,7 @@
             "base_crit_chance": 15,
             "base_dodge": 21,
             "max_hp": 148,
-            "hp": 37,
+            "hp": 148,
             "regen_per_turn": 4,
             "cooldown_reduction": 0,
             "damage_reduction": 5,
@@ -60,7 +62,7 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "carapaca_reforcada",
-            "gold": 3629
+            "gold": 3366
         },
         "arara_azul": {
             "level": 4,
@@ -102,24 +104,24 @@
             "gold": 113
         },
         "onca_pintada": {
-            "level": 13,
-            "xp": 4484,
-            "xp_to_level": 6453,
-            "base_attack": 63,
+            "level": 14,
+            "xp": 1832,
+            "xp_to_level": 9679,
+            "base_attack": 66,
             "base_defense": 24,
-            "base_speed": 26,
-            "base_crit_chance": 37,
+            "base_speed": 27,
+            "base_crit_chance": 38,
             "base_dodge": 26,
-            "max_hp": 102,
-            "hp": 25,
+            "max_hp": 104,
+            "hp": 40,
             "regen_per_turn": 2,
             "cooldown_reduction": 0,
             "damage_reduction": 2,
-            "execute_bonus": 6,
+            "execute_bonus": 9,
             "crit_damage_boost": 100,
             "evolution_stage": 1,
             "specific_upgrade_id": "instinto_predador",
-            "gold": 3128
+            "gold": 2373
         },
         "capivara": {
             "level": 3,
@@ -139,16 +141,16 @@
             "evolution_stage": 0
         },
         "tamandua_bandeira": {
-            "level": 13,
-            "xp": 4699,
-            "xp_to_level": 6453,
-            "base_attack": 43,
-            "base_defense": 36,
-            "base_speed": 27,
+            "level": 14,
+            "xp": 2445,
+            "xp_to_level": 9679,
+            "base_attack": 45,
+            "base_defense": 37,
+            "base_speed": 28,
             "base_crit_chance": 48,
-            "base_dodge": 10,
-            "max_hp": 125,
-            "hp": 31,
+            "base_dodge": 18,
+            "max_hp": 127,
+            "hp": 63,
             "regen_per_turn": 0,
             "cooldown_reduction": 1,
             "damage_reduction": 0,
@@ -156,13 +158,13 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "defesa_natural",
-            "gold": 3041
+            "gold": 2257
         }
     },
     "active_party": [
         "tatu_bola",
-        "tamandua_bandeira",
-        "onca_pintada"
+        "onca_pintada",
+        "tamandua_bandeira"
     ],
     "bestiary_discovered": [
         "tatu_bola",
@@ -182,30 +184,504 @@
         "lobo_de_fogo"
     ],
     "statistics": {
-        "combats_won": 234,
+        "combats_won": 277,
         "combats_lost": 15,
-        "enemies_defeated": 424,
-        "gold_earned": 9685,
-        "levels_gained": 28,
+        "enemies_defeated": 499,
+        "gold_earned": 11942,
+        "levels_gained": 30,
         "animals_rescued": 1,
-        "bosses_defeated": 24
+        "bosses_defeated": 31
     },
     "settings": {
-        "fullscreen": true,
+        "fullscreen": false,
         "window_size": [
             1280,
             720
         ],
-        "music_volume": 0.7,
-        "music_muted": false,
+        "music_volume": 0.3,
+        "music_muted": true,
         "sfx_volume": 0.8,
         "combat_speed": 3,
         "show_damage_numbers": true,
         "show_combat_log": true,
         "confirm_quit": true
     },
-    "play_time": 8026.466099739075,
-    "last_save_time": 1793303832.3214233,
-    "run_active": false,
-    "run": null
+    "play_time": 12881.985492706299,
+    "last_save_time": 1793408633.8179138,
+    "run_active": true,
+    "run": {
+        "current_biome": "pantanal",
+        "map": {
+            "biome_id": "pantanal",
+            "current_node_id": null,
+            "nodes": {
+                "0": {
+                    "node_id": 0,
+                    "floor": 0,
+                    "position": 0,
+                    "node_type": "combat",
+                    "connections": [
+                        1,
+                        2
+                    ],
+                    "parents": [],
+                    "visited": false,
+                    "available": true,
+                    "blocked": false
+                },
+                "1": {
+                    "node_id": 1,
+                    "floor": 1,
+                    "position": 0,
+                    "node_type": "combat",
+                    "connections": [
+                        3,
+                        4
+                    ],
+                    "parents": [
+                        0
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "2": {
+                    "node_id": 2,
+                    "floor": 1,
+                    "position": 1,
+                    "node_type": "combat",
+                    "connections": [
+                        4,
+                        5
+                    ],
+                    "parents": [
+                        0
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "3": {
+                    "node_id": 3,
+                    "floor": 2,
+                    "position": 0,
+                    "node_type": "event",
+                    "connections": [
+                        6,
+                        7
+                    ],
+                    "parents": [
+                        1
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "4": {
+                    "node_id": 4,
+                    "floor": 2,
+                    "position": 1,
+                    "node_type": "shop",
+                    "connections": [
+                        7,
+                        8
+                    ],
+                    "parents": [
+                        1,
+                        2
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "5": {
+                    "node_id": 5,
+                    "floor": 2,
+                    "position": 2,
+                    "node_type": "combat",
+                    "connections": [
+                        8,
+                        9
+                    ],
+                    "parents": [
+                        2
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "6": {
+                    "node_id": 6,
+                    "floor": 3,
+                    "position": 0,
+                    "node_type": "shop",
+                    "connections": [
+                        10,
+                        11
+                    ],
+                    "parents": [
+                        3
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "7": {
+                    "node_id": 7,
+                    "floor": 3,
+                    "position": 1,
+                    "node_type": "event",
+                    "connections": [
+                        11,
+                        12
+                    ],
+                    "parents": [
+                        3,
+                        4
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "8": {
+                    "node_id": 8,
+                    "floor": 3,
+                    "position": 2,
+                    "node_type": "combat",
+                    "connections": [
+                        12,
+                        13
+                    ],
+                    "parents": [
+                        4,
+                        5
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "9": {
+                    "node_id": 9,
+                    "floor": 3,
+                    "position": 3,
+                    "node_type": "event",
+                    "connections": [
+                        12,
+                        13
+                    ],
+                    "parents": [
+                        5
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "10": {
+                    "node_id": 10,
+                    "floor": 4,
+                    "position": 0,
+                    "node_type": "elite",
+                    "connections": [
+                        14,
+                        15
+                    ],
+                    "parents": [
+                        6
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "11": {
+                    "node_id": 11,
+                    "floor": 4,
+                    "position": 1,
+                    "node_type": "event",
+                    "connections": [
+                        15,
+                        16
+                    ],
+                    "parents": [
+                        6,
+                        7
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "12": {
+                    "node_id": 12,
+                    "floor": 4,
+                    "position": 2,
+                    "node_type": "shop",
+                    "connections": [
+                        16,
+                        17
+                    ],
+                    "parents": [
+                        7,
+                        8,
+                        9
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "13": {
+                    "node_id": 13,
+                    "floor": 4,
+                    "position": 3,
+                    "node_type": "rescue_animal",
+                    "connections": [
+                        16,
+                        17
+                    ],
+                    "parents": [
+                        8,
+                        9
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "14": {
+                    "node_id": 14,
+                    "floor": 5,
+                    "position": 0,
+                    "node_type": "event",
+                    "connections": [
+                        18,
+                        19
+                    ],
+                    "parents": [
+                        10
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "15": {
+                    "node_id": 15,
+                    "floor": 5,
+                    "position": 1,
+                    "node_type": "combat",
+                    "connections": [
+                        19,
+                        20
+                    ],
+                    "parents": [
+                        10,
+                        11
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "16": {
+                    "node_id": 16,
+                    "floor": 5,
+                    "position": 2,
+                    "node_type": "event",
+                    "connections": [
+                        20,
+                        21
+                    ],
+                    "parents": [
+                        11,
+                        12,
+                        13
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "17": {
+                    "node_id": 17,
+                    "floor": 5,
+                    "position": 3,
+                    "node_type": "shop",
+                    "connections": [
+                        20,
+                        21
+                    ],
+                    "parents": [
+                        12,
+                        13
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "18": {
+                    "node_id": 18,
+                    "floor": 6,
+                    "position": 0,
+                    "node_type": "elite",
+                    "connections": [
+                        22,
+                        23
+                    ],
+                    "parents": [
+                        14
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "19": {
+                    "node_id": 19,
+                    "floor": 6,
+                    "position": 1,
+                    "node_type": "event",
+                    "connections": [
+                        23,
+                        24
+                    ],
+                    "parents": [
+                        14,
+                        15
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "20": {
+                    "node_id": 20,
+                    "floor": 6,
+                    "position": 2,
+                    "node_type": "shop",
+                    "connections": [
+                        23,
+                        24
+                    ],
+                    "parents": [
+                        15,
+                        16,
+                        17
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "21": {
+                    "node_id": 21,
+                    "floor": 6,
+                    "position": 3,
+                    "node_type": "combat",
+                    "connections": [
+                        23,
+                        24
+                    ],
+                    "parents": [
+                        16,
+                        17
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "22": {
+                    "node_id": 22,
+                    "floor": 7,
+                    "position": 0,
+                    "node_type": "event",
+                    "connections": [
+                        25,
+                        26
+                    ],
+                    "parents": [
+                        18
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "23": {
+                    "node_id": 23,
+                    "floor": 7,
+                    "position": 1,
+                    "node_type": "shop",
+                    "connections": [
+                        25,
+                        26
+                    ],
+                    "parents": [
+                        18,
+                        19,
+                        20,
+                        21
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "24": {
+                    "node_id": 24,
+                    "floor": 7,
+                    "position": 2,
+                    "node_type": "combat",
+                    "connections": [
+                        25,
+                        26
+                    ],
+                    "parents": [
+                        19,
+                        20,
+                        21
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "25": {
+                    "node_id": 25,
+                    "floor": 8,
+                    "position": 0,
+                    "node_type": "elite",
+                    "connections": [
+                        27
+                    ],
+                    "parents": [
+                        22,
+                        23,
+                        24
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "26": {
+                    "node_id": 26,
+                    "floor": 8,
+                    "position": 1,
+                    "node_type": "event",
+                    "connections": [
+                        27
+                    ],
+                    "parents": [
+                        22,
+                        23,
+                        24
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                },
+                "27": {
+                    "node_id": 27,
+                    "floor": 9,
+                    "position": 0,
+                    "node_type": "boss",
+                    "connections": [],
+                    "parents": [
+                        25,
+                        26
+                    ],
+                    "visited": false,
+                    "available": false,
+                    "blocked": true
+                }
+            }
+        }
+    }
 }

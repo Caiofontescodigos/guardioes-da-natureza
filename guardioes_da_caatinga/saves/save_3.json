@@ -22,14 +22,15 @@
             "base_crit_chance": 5,
             "base_dodge": 5,
             "max_hp": 84,
-            "hp": 49,
+            "hp": 84,
             "regen_per_turn": 0,
             "cooldown_reduction": 0,
             "damage_reduction": 0,
             "execute_bonus": 3,
             "crit_damage_boost": 0,
             "evolution_stage": 0,
-            "gold": 60
+            "specific_upgrade_id": null,
+            "gold": 0
         }
     },
     "active_party": [
@@ -68,7 +69,7 @@
         "current_biome": "caatinga",
         "map": {
             "biome_id": "caatinga",
-            "current_node_id": 8,
+            "current_node_id": 17,
             "nodes": {
                 "0": {
                     "node_id": 0,
@@ -278,8 +279,8 @@
                         8,
                         9
                     ],
-                    "visited": false,
-                    "available": true,
+                    "visited": true,
+                    "available": false,
                     "blocked": false
                 },
                 "13": {
@@ -296,8 +297,8 @@
                         9
                     ],
                     "visited": false,
-                    "available": true,
-                    "blocked": false
+                    "available": false,
+                    "blocked": true
                 },
                 "14": {
                     "node_id": 14,
@@ -348,7 +349,7 @@
                     ],
                     "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "17": {
                     "node_id": 17,
@@ -363,7 +364,7 @@
                         12,
                         13
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
                     "blocked": false
                 },
@@ -415,7 +416,7 @@
                         17
                     ],
                     "visited": false,
-                    "available": false,
+                    "available": true,
                     "blocked": false
                 },
                 "21": {
@@ -432,7 +433,7 @@
                         17
                     ],
                     "visited": false,
-                    "available": false,
+                    "available": true,
                     "blocked": false
                 },
                 "22": {
@@ -540,6 +541,6 @@
         }
     },
     "run_active": true,
-    "play_time": 179.56450247764587,
-    "last_save_time": 1793203623.9562352
+    "play_time": 223.60912156105042,
+    "last_save_time": 1793363180.3286245
 }
