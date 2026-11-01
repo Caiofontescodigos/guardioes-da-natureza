@@ -94,10 +94,17 @@ class AssetManager:
         if not os.path.isdir(self.images_dir):
             print(f"[AssetManager] Pasta de imagens nao encontrada: {self.images_dir}")
             return
-        for filename in os.listdir(self.images_dir):
-            lower = filename.lower()
-            if lower.endswith((".jpeg", ".jpg", ".png", ".bmp")):
-                self.available_files[filename] = os.path.join(self.images_dir, filename)
+        for root, dirs, files in os.walk(self.images_dir):
+            dirs.sort()
+            for filename in sorted(files):
+                lower = filename.lower()
+                if not lower.endswith((".jpeg", ".jpg", ".png", ".bmp")):
+                    continue
+                if filename in self.available_files:
+                    print(f"[AssetManager] Imagem duplicada ignorada: {filename} "
+                          f"({os.path.join(root, filename)})")
+                    continue
+                self.available_files[filename] = os.path.join(root, filename)
 
     def _load_all(self):
         for name, filepath in self.available_files.items():
