@@ -343,6 +343,8 @@ class Game:
             self.music_manager.set_muted(bool(value))
         elif key == "sfx_volume":
             self.sfx.set_volume(float(value))
+            if commit:
+                self.sfx.play_click()
 
         if self.save_data is not None:
             self.save_data.setdefault("settings", {})[key] = value

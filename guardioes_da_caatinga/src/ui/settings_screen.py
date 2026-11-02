@@ -115,14 +115,17 @@ class SettingsScreen:
 
         row_x = self.columns[1][1].x + 18
         self.volume_slider = SliderControl(
-            "music_volume", "Volume da musica", 0.7,
+            "music_volume", "musica", 0.7,
             pygame.Rect(row_x, row_y, row_w, 66))
         self.mute_toggle = ToggleControl(
-            "music_muted", "Mudo", False,
+            "music_muted", "Mudo (musica)", False,
             pygame.Rect(row_x, row_y + 84, row_w, 46))
+        self.sfx_slider = SliderControl(
+            "sfx_volume", "Efeitos Sonoros", 0.8,
+            pygame.Rect(row_x, row_y + 150, row_w, 66))
         self.music_box_button = ActionButton(
-            "open_music_box", "Caixa de musica",
-            pygame.Rect(row_x, row_y + 146, row_w, 46),
+            "open_music_box", "Caixa de musicas",
+            pygame.Rect(row_x, row_y + 240, row_w, 46),
             color=(70, 55, 30), font_size=20)
 
         row_x = self.columns[2][1].x + 18
@@ -141,7 +144,7 @@ class SettingsScreen:
 
         self.controls = [
             self.fullscreen_toggle, self.resolution_seg,
-            self.volume_slider, self.mute_toggle,
+            self.volume_slider, self.mute_toggle, self.sfx_slider,
             self.speed_seg, self.damage_toggle, self.log_toggle,
             self.confirm_quit_toggle,
         ]
@@ -160,6 +163,7 @@ class SettingsScreen:
         self.resolution_seg.enabled = not self.fullscreen_toggle.value
         self.volume_slider.value = float(settings.get("music_volume", 0.7))
         self.mute_toggle.value = bool(settings.get("music_muted", False))
+        self.sfx_slider.value = float(settings.get("sfx_volume", 0.8))
         self.speed_seg.value = int(settings.get("combat_speed", 1))
         self.damage_toggle.value = bool(
             settings.get("show_damage_numbers", True))

@@ -45,6 +45,10 @@ def load_global_settings():
         settings["music_volume"] = max(0.0, min(1.0, float(settings["music_volume"])))
     except (TypeError, ValueError):
         settings["music_volume"] = DEFAULT_GLOBAL_SETTINGS["music_volume"]
+    try:
+        settings["sfx_volume"] = max(0.0, min(1.0, float(settings["sfx_volume"])))
+    except (TypeError, ValueError):
+        settings["sfx_volume"] = DEFAULT_GLOBAL_SETTINGS["sfx_volume"]
     if settings.get("combat_speed") not in (1, 2, 3):
         settings["combat_speed"] = DEFAULT_GLOBAL_SETTINGS["combat_speed"]
     return settings

@@ -67,7 +67,7 @@ class SfxManager:
             sample_rate = int(frequency)
             duration = 0.07
             total = int(sample_rate * duration)
-            amplitude = 0.22 * 32767
+            amplitude = 0.95 * 32767
             for index in range(total):
                 t = index / sample_rate
                 attack = min(1.0, t / 0.004)
@@ -79,7 +79,7 @@ class SfxManager:
                 for _ in range(max(1, channels)):
                     samples.append(value)
             sound = pygame.mixer.Sound(buffer=samples.tobytes())
-            sound.set_volume(self.volume * 0.55)
+            sound.set_volume(self.volume)
             self._click = sound
         except (pygame.error, ValueError, MemoryError) as e:
             print(f"[SFX] Nao foi possivel gerar o som de clique: {e}")
@@ -93,7 +93,7 @@ class SfxManager:
         if self._ping:
             self._ping.set_volume(self.volume)
         if self._click:
-            self._click.set_volume(self.volume * 0.55)
+            self._click.set_volume(self.volume)
 
     def play_click(self):
         if not self._click or self.volume <= 0:
