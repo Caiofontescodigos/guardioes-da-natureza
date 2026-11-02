@@ -611,6 +611,9 @@ class Game:
             self.handle_event_single(event)
 
     def handle_event_single(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self.sfx.play_click()
+
         if self.quit_dialog.visible:
             self._handle_quit_dialog(event)
             return
