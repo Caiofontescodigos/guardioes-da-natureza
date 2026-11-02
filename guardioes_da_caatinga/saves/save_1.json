@@ -201,7 +201,7 @@
             1280,
             720
         ],
-        "music_volume": 0.3,
+        "music_volume": 0.4,
         "music_muted": true,
         "sfx_volume": 0.8,
         "combat_speed": 3,
@@ -210,7 +210,7 @@
         "confirm_quit": true
     },
     "play_time": 14977.924057245255,
-    "last_save_time": 1793472608.9131098,
+    "last_save_time": 1793577668.4068487,
     "run_active": true,
     "run": {
         "current_biome": "caatinga",
