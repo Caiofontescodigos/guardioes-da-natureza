@@ -49,7 +49,7 @@
     "animal_data": {
         "tatu_bola": {
             "level": 16,
-            "xp": 2295,
+            "xp": 6998,
             "xp_to_level": 21777,
             "base_attack": 23,
             "base_defense": 74,
@@ -65,7 +65,7 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "carapaca_reforcada",
-            "gold": 5957
+            "gold": 8223
         },
         "arara_azul": {
             "level": 4,
@@ -84,6 +84,7 @@
             "execute_bonus": 0,
             "crit_damage_boost": 50,
             "evolution_stage": 0,
+            "specific_upgrade_id": null,
             "gold": 0
         },
         "lobo_guara": {
@@ -108,7 +109,7 @@
         },
         "onca_pintada": {
             "level": 15,
-            "xp": 9585,
+            "xp": 14159,
             "xp_to_level": 14518,
             "base_attack": 70,
             "base_defense": 24,
@@ -124,7 +125,7 @@
             "crit_damage_boost": 150,
             "evolution_stage": 1,
             "specific_upgrade_id": "instinto_predador",
-            "gold": 3744
+            "gold": 5923
         },
         "capivara": {
             "level": 3,
@@ -136,16 +137,19 @@
             "base_crit_chance": 5,
             "base_dodge": 8,
             "max_hp": 78,
+            "hp": 78,
             "regen_per_turn": 0,
+            "cooldown_reduction": 0,
             "damage_reduction": 0,
             "execute_bonus": 0,
             "crit_damage_boost": 0,
-            "cooldown_reduction": 0,
-            "evolution_stage": 0
+            "evolution_stage": 0,
+            "specific_upgrade_id": null,
+            "gold": 0
         },
         "tamandua_bandeira": {
             "level": 15,
-            "xp": 9554,
+            "xp": 13970,
             "xp_to_level": 14518,
             "base_attack": 48,
             "base_defense": 38,
@@ -153,7 +157,7 @@
             "base_crit_chance": 48,
             "base_dodge": 18,
             "max_hp": 127,
-            "hp": 127,
+            "hp": 100,
             "regen_per_turn": 0,
             "cooldown_reduction": 1,
             "damage_reduction": 0,
@@ -161,12 +165,12 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "defesa_natural",
-            "gold": 3366
+            "gold": 5441
         }
     },
     "active_party": [
-        "tatu_bola",
         "tamandua_bandeira",
+        "tatu_bola",
         "onca_pintada"
     ],
     "bestiary_discovered": [
@@ -187,13 +191,13 @@
         "lobo_de_fogo"
     ],
     "statistics": {
-        "combats_won": 437,
-        "combats_lost": 20,
-        "enemies_defeated": 800,
-        "gold_earned": 21468,
+        "combats_won": 483,
+        "combats_lost": 23,
+        "enemies_defeated": 887,
+        "gold_earned": 23884,
         "levels_gained": 34,
         "animals_rescued": 1,
-        "bosses_defeated": 50
+        "bosses_defeated": 54
     },
     "settings": {
         "fullscreen": false,
@@ -209,13 +213,13 @@
         "show_combat_log": true,
         "confirm_quit": true
     },
-    "play_time": 15120.644988298416,
-    "last_save_time": 1793577792.171696,
+    "play_time": 15559.489927053452,
+    "last_save_time": 1793966188.7785547,
     "run_active": true,
     "run": {
-        "current_biome": "caatinga",
+        "current_biome": "cerrado",
         "map": {
-            "biome_id": "caatinga",
+            "biome_id": "cerrado",
             "current_node_id": null,
             "nodes": {
                 "0": {
@@ -350,7 +354,7 @@
                     "node_id": 8,
                     "floor": 3,
                     "position": 2,
-                    "node_type": "combat",
+                    "node_type": "elite",
                     "connections": [
                         12,
                         13
@@ -367,7 +371,7 @@
                     "node_id": 9,
                     "floor": 3,
                     "position": 3,
-                    "node_type": "rescue_animal",
+                    "node_type": "event",
                     "connections": [
                         12,
                         13
@@ -434,7 +438,7 @@
                     "node_id": 13,
                     "floor": 4,
                     "position": 3,
-                    "node_type": "elite",
+                    "node_type": "combat",
                     "connections": [
                         16,
                         17
@@ -467,7 +471,7 @@
                     "node_id": 15,
                     "floor": 5,
                     "position": 1,
-                    "node_type": "elite",
+                    "node_type": "combat",
                     "connections": [
                         19,
                         20
@@ -484,7 +488,7 @@
                     "node_id": 16,
                     "floor": 5,
                     "position": 2,
-                    "node_type": "event",
+                    "node_type": "rescue_animal",
                     "connections": [
                         20,
                         21
@@ -519,7 +523,7 @@
                     "node_id": 18,
                     "floor": 6,
                     "position": 0,
-                    "node_type": "combat",
+                    "node_type": "elite",
                     "connections": [
                         22,
                         23
@@ -570,7 +574,7 @@
                     "node_id": 21,
                     "floor": 6,
                     "position": 3,
-                    "node_type": "elite",
+                    "node_type": "combat",
                     "connections": [
                         23,
                         24
@@ -688,8 +692,8 @@
         }
     },
     "potions": {
-        "health": 60,
-        "defense": 21,
-        "attack": 41
+        "health": 57,
+        "defense": 23,
+        "attack": 43
     }
 }

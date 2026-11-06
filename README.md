@@ -13,6 +13,31 @@ python3 main.py
 
 Dependências: `pygame>=2.5.0` (ver `requirements.txt`).
 
+## Fluxo de navegação
+
+1. **Menu principal**: JOGAR, SOBRE, CONFIGURAÇÕES e SAIR.
+2. **JOGAR** abre a seleção dos três slots de save.
+3. Ao selecionar ou criar um slot, abre o **menu da partida** daquele save.
+4. O menu da partida reúne Bestiário, Acampamento, Conquistas,
+   Configurações, Sobre e **JOGAR**, que abre a seleção de equipe.
+5. Confirmar a equipe inicia ou retoma a jornada; voltar durante a jornada
+   retorna ao menu da partida, com o progresso salvo.
+6. O botão **SELECIONAR SAVE** no menu da partida retorna à seleção de slots.
+7. O **SAIR** do menu da partida encerra apenas a sessão do slot atual:
+   salva o progresso, desvincula o save ativo e volta à seleção de slots sem
+   apagar dados e sem fechar o jogo. O **SAIR** do menu principal continua
+   encerrando o aplicativo.
+8. Se toda a equipe for derrotada, a tentativa atual termina: a equipe é
+   recuperada (25% do HP máximo, mínimo 1) e uma nova jornada começa no
+   primeiro mapa, preservando animais desbloqueados, bestiário, ouro,
+   estatísticas, configurações e demais dados permanentes do save.
+
+O slot ativo é mantido pelo `SaveManager`; todas as telas da partida
+(Bestiário, Conquistas, equipe, ouro, estatísticas e jornada) usam os
+dados desse mesmo slot, sem armazenamento paralelo. Os sistemas de Inventário
+e Missões continuam disponíveis no código e em suas telas de origem, mas não
+são mais expostos pelo menu da partida.
+
 ## Funcionalidades
 
 - **Batalhas automáticas** por turnos com sistema de turnos por velocidade:

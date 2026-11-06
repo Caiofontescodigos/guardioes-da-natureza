@@ -39,6 +39,7 @@
             "execute_bonus": 0,
             "crit_damage_boost": 0,
             "evolution_stage": 0,
+            "specific_upgrade_id": null,
             "gold": 192
         },
         "arara_azul": {
@@ -58,6 +59,7 @@
             "execute_bonus": 0,
             "crit_damage_boost": 0,
             "evolution_stage": 0,
+            "specific_upgrade_id": null,
             "gold": 120
         },
         "lobo_guara": {
@@ -96,12 +98,12 @@
             "execute_bonus": 0,
             "crit_damage_boost": 0,
             "evolution_stage": 0,
+            "specific_upgrade_id": null,
             "gold": 0
         }
     },
     "active_party": [
-        "tatu_bola",
-        "tamandua_bandeira"
+        "arara_azul"
     ],
     "bestiary_discovered": [
         "tatu_bola",
@@ -136,8 +138,8 @@
         "show_combat_log": true,
         "confirm_quit": true
     },
-    "play_time": 556.1123859882355,
-    "last_save_time": 1793203623.9537525,
+    "play_time": 572.9522836208344,
+    "last_save_time": 1793909405.137496,
     "run_active": true,
     "run": {
         "current_biome": "caatinga",
@@ -613,5 +615,10 @@
                 }
             }
         }
+    },
+    "potions": {
+        "health": 0,
+        "defense": 0,
+        "attack": 0
     }
 }

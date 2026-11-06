@@ -36,9 +36,12 @@ MAIN_MENU_BUTTON_MAP = {
     "how_to_play": "MenuSobre.png",
     "bestiary": "MenuBestiario.png",
     "quit": "MenuSair.png",
+    "leave_match": "MenuSair.png",
     "achievements": "MenuConquistas.png",
     "settings": "MenuConfiguracoes.png",
     "acampamento": "MenuAcampamento.png",
+    "inventory": "Inventario.png",
+    "missions": "Missoes.png",
 }
 
 NODE_ICON_MAP = {
@@ -54,10 +57,11 @@ NODE_ICON_MAP = {
 BACKGROUND_MAP = {
     "main_menu": "TelainicialNova.jpeg",
     "how_to_play": "TelainicialNova.jpeg",
-    "animal_select": "TelainicialNova.jpeg",
+    "animal_select": "SeleçãoEquipe.png",
     "biome_select": "TelainicialNova.jpeg",
     "settings": "TelainicialNova.jpeg",
     "acampamento": "TelainicialNova.jpeg",
+    "saves": "TelaSaves.jpeg",
     "map": "Mapadajornada.png",
     "combat": "Cenariodeluta.jpeg",
     "event": "Momento de escolha.jpeg",
@@ -66,7 +70,21 @@ BACKGROUND_MAP = {
     "level_up": "Momento de escolha.jpeg",
     "rescue": "Momento de escolha.jpeg",
     "cage_reward": "Momento de escolha.jpeg",
+    "game_over": "TelaGameOver.jpeg",
 }
+
+# Locked-animal placeholder supplied with the team-selection artwork.
+LOCKED_ANIMAL_FILENAME = "?.png"
+
+
+# Artwork sheet with the three save panels, kept exactly as supplied.  Each
+# bounds tuple is (left, top, right, bottom) in the original image.
+SAVE_PANEL_FILENAME = "Saves.png"
+SAVE_PANEL_BOUNDS = (
+    (10, 19, 1528, 321),
+    (10, 351, 1528, 653),
+    (10, 675, 1528, 977),
+)
 
 # Region-specific art for the journey map.  The generic map stays as the
 # fallback for any biome that does not have dedicated art yet.
@@ -263,6 +281,88 @@ class AssetManager:
         self._surfaces_cache[cache_key] = scaled
         return scaled
 
+    def get_save_panel(self, index, target_width):
+        """Return one of the three original save panels, scaled uniformly.
+
+        ``index`` is 0-based.  The panel is cropped from ``Saves.png`` at
+        runtime; the source artwork is never redrawn or stretched.
+        """
+        if index < 0 or index >= len(SAVE_PANEL_BOUNDS):
+            return None
+        img = self._cache.get(SAVE_PANEL_FILENAME)
+        if img is None:
+            print(f"[AssetManager] Arte de saves ausente: {SAVE_PANEL_FILENAME}")
+            return None
+
+        left, top, right, bottom = SAVE_PANEL_BOUNDS[index]
+        src_w, src_h = right - left, bottom - top
+        target_width = max(1, int(target_width))
+        target_height = max(1, int(round(src_h * target_width / src_w)))
+        cache_key = f"savepanel_{index}_{target_width}_{target_height}"
+        cached = self._surfaces_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        panel = img.subsurface(pygame.Rect(left, top, src_w, src_h)).copy()
+        panel = pygame.transform.smoothscale(panel, (target_width, target_height))
+        self._surfaces_cache[cache_key] = panel
+        return panel
+
+    def get_fitted_image(self, filename, max_width, max_height):
+        """Load an image and fit it inside a box, preserving its aspect ratio."""
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Imagem ausente: {filename}")
+            return None
+
+        max_width = max(1, int(max_width))
+        max_height = max(1, int(max_height))
+        cache_key = f"fitted_{filename}_{max_width}_{max_height}"
+        cached = self._surfaces_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        scaled = pygame.transform.smoothscale(
+            img, self._fit_size(img, max_width, max_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
+
+    def get_locked_animal_image(self, max_width=180, max_height=180):
+        """Return the supplied question-mark art for locked animal cards."""
+        return self.get_fitted_image(
+            LOCKED_ANIMAL_FILENAME, max_width, max_height)
+
+    def get_background_cover(self, screen_key, screen_width, screen_height):
+        """Return a background scaled to cover the screen without distortion."""
+        filename = BACKGROUND_MAP.get(screen_key)
+        if filename is None:
+            print(f"[AssetManager] Background nao mapeado para tela '{screen_key}'")
+            return None
+
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Arquivo de background ausente: {filename} (tela: {screen_key})")
+            return None
+
+        screen_width = max(1, int(screen_width))
+        screen_height = max(1, int(screen_height))
+        cache_key = f"bgcover_{filename}_{screen_width}_{screen_height}"
+        cached = self._surfaces_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        src_w, src_h = img.get_size()
+        ratio = max(screen_width / src_w, screen_height / src_h)
+        scaled_w = max(screen_width, int(src_w * ratio))
+        scaled_h = max(screen_height, int(src_h * ratio))
+        scaled = pygame.transform.smoothscale(img, (scaled_w, scaled_h))
+        left = (scaled_w - screen_width) // 2
+        top = (scaled_h - screen_height) // 2
+        cover = scaled.subsurface(
+            pygame.Rect(left, top, screen_width, screen_height)).copy()
+        self._surfaces_cache[cache_key] = cover
+        return cover
+
     def get_map_background(self, biome_id, boss_phase, screen_width, screen_height):
         """Return the journey map art for a biome, or the boss art.
 
@@ -296,6 +396,14 @@ class AssetManager:
 
     def draw_background(self, surface, screen_key):
         bg = self.get_background(screen_key, surface.get_width(), surface.get_height())
+        if bg:
+            surface.blit(bg, (0, 0))
+        else:
+            surface.fill((20, 15, 30))
+
+    def draw_background_cover(self, surface, screen_key):
+        bg = self.get_background_cover(
+            screen_key, surface.get_width(), surface.get_height())
         if bg:
             surface.blit(bg, (0, 0))
         else:

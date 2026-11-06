@@ -193,6 +193,17 @@ class Game:
             on_show=lambda entry: self.sfx.play_achievement())
         self.save_data = None
         self.active_slot = None
+        # True when the selected slot has no file yet. Nothing is written
+        # until the player confirms a team and effectively starts the match.
+        self._active_slot_is_new = False
+        # True while the team screen belongs to a save slot that does not
+        # exist on disk yet (nothing must be persisted before CONFIRMAR).
+        self._team_is_new_save = False
+        # Snapshot of the previous save context, restored when the player
+        # backs out of team selection without confirming.
+        self._team_return_context = None
+        # Where SOBRE should return to (main menu or match menu).
+        self._how_to_play_return_state = GameState.MAIN_MENU
 
         # Track where settings were opened from
         self._settings_origin = None  # e.g. "main_menu" or "journey"
@@ -253,6 +264,7 @@ class Game:
 
         self.cage_reward_screen = None
         self.pending_cage_animal = None
+        self.game_over_screen = None
         self.journey_select_screen = None
         self.swap_screen = None
         self.swap_pending_new_id = None
@@ -270,9 +282,9 @@ class Game:
             confirm_color=(150, 50, 40),
         )
         self.map_exit_dialog = ConfirmDialog(
-            title="Voltar ao inicio",
-            message="Deseja voltar ao menu principal? A jornada e salva "
-                    "automaticamente e pode ser retomada depois.",
+            title="Voltar ao menu da partida",
+            message="Deseja encerrar a jornada e voltar ao menu da partida? "
+                    "O progresso e salvo automaticamente e pode ser retomado.",
             confirm_label="VOLTAR",
             cancel_label="CANCELAR",
             confirm_color=(150, 50, 40),
@@ -353,7 +365,7 @@ class Game:
             return
 
         save_global_settings(self.global_settings)
-        if self.save_data is not None:
+        if self.save_data is not None and not self._active_slot_is_new:
             self.save_manager.save_game(self.save_data)
         self.settings_screen.sync(self.global_settings)
 
@@ -372,7 +384,7 @@ class Game:
             self.save_data["settings"] = copy.deepcopy(defaults)
 
         save_global_settings(self.global_settings)
-        if self.save_data is not None:
+        if self.save_data is not None and not self._active_slot_is_new:
             self.save_manager.save_game(self.save_data)
         self.settings_screen.sync(self.global_settings)
         self._notify_save("Configuracoes restauradas")
@@ -461,16 +473,100 @@ class Game:
         self.current_biome = biomes[-1] if biomes else "caatinga"
         self.start_new_run()
 
-    def _start_new_journey(self, slot):
-        if self.save_manager.get_slot_status(slot) == "ok":
+    def _clear_journey_runtime(self):
+        """Drop in-memory journey objects without touching the save data."""
+        self.map_generator = None
+        self.map_ui = None
+        self.combat_system = None
+        self.combat_ui = None
+        self.current_event = None
+        self._run_start_time = 0
+        self.pending_level_ups = 0
+        self.pending_level_up_animals = []
+        self.current_level_up_animal = None
+        self.pending_evolutions = []
+        self.current_evolution_animal = None
+        self.current_evolution_stage = 0
+        self.next_biome_pending = None
+        self.pending_rescue_animal = None
+        self.pending_bonus_rescue = None
+        self.encounter_animal_id = None
+        self.encounter_step = "main"
+        self.encounter_swap_index = -1
+        self.cage_reward_screen = None
+        self.swap_screen = None
+        self.swap_pending_new_id = None
+        self.swap_pending_new_name = None
+        self.pending_cage_animal = None
+        self.victory_message = ""
+        self.victory_time = 0
+        self.victory_xp_gained = 0
+        self.victory_gold_gained = 0
+        self.node_xp_bonus = 0
+        self.node_gold_bonus = 1
+        self.inventory_screen = None
+        self._overlay_return_state = None
+
+    def _open_match_menu(self, slot):
+        """Load a slot and show the save's internal menu.
+
+        Selecting a save must never start the journey immediately.  Existing
+        saves are read through SaveManager; empty slots get an in-memory save
+        that is written only after the player confirms a team.
+        """
+        status = self.save_manager.get_slot_status(slot)
+        if status == "corrupt":
             return
-        self.save_data = self.save_manager.create_save()
+
+        if status == "ok":
+            data = self.save_manager.load_slot(slot)
+            if not data:
+                return
+            self.save_data = data
+            self._active_slot_is_new = False
+            self.achievement_manager.bind_slot(slot)
+            self.achievement_manager.sync_from_save(slot, data)
+        else:
+            self.save_data = self.save_manager.create_save()
+            self._active_slot_is_new = True
+            self.achievement_manager.bind_slot(slot)
+
         self.active_slot = slot
         self.save_manager.active_slot = slot
-        self.achievement_manager.bind_slot(slot)
         self.party = []
+        self._rebuild_party_from_save()
+        self._clear_journey_runtime()
         self.setup_screens()
-        self.save_manager.save_game(self.save_data)
+        self.state = GameState.MATCH_MENU
+        try:
+            self.music_manager.play_menu_music()
+        except Exception:
+            pass
+
+    def _open_team_from_match(self):
+        """Open team selection for the save currently shown in the match menu."""
+        if self.active_slot is None or self.save_data is None:
+            return
+        from src.ui.menu import AnimalSelectScreen
+
+        # Backing out of team selection must restore the exact match context.
+        self._team_return_context = {
+            "save_data": copy.deepcopy(self.save_data),
+            "party": copy.deepcopy(self.party),
+            "active_slot": self.active_slot,
+            "manager_slot": self.save_manager.active_slot,
+            "achievement_slot": getattr(
+                self.achievement_manager, "active_slot", None),
+            "active_slot_is_new": self._active_slot_is_new,
+        }
+        self._team_is_new_save = self._active_slot_is_new
+
+        unlocked = self.save_data.get("unlocked_animals", ["tatu_bola"])
+        self.animal_select = AnimalSelectScreen(
+            unlocked, self.assets, self.save_data,
+            max_selection=MAX_PARTY_SIZE, reteam_mode=True)
+        self.animal_select.set_selection(
+            self.save_manager.load_party_ids(self.save_data))
         self.state = GameState.ANIMAL_SELECT
 
     def _sync_party_from_selection(self):
@@ -515,12 +611,15 @@ class Game:
             self.save_data = self.save_manager.save_animal_stats(self.save_data, animal)
 
     def setup_screens(self):
-        from src.ui.menu import (MainMenu, AnimalSelectScreen, BiomeSelectScreen,
-                                  BestiaryScreen, AcampamentoScreen,
-                                  JourneySelectScreen)
+        from src.ui.menu import (MainMenu, MatchMenu, AnimalSelectScreen,
+                                  BiomeSelectScreen, BestiaryScreen,
+                                  AcampamentoScreen, JourneySelectScreen)
         from src.ui.settings_screen import SettingsScreen
         from src.ui.how_to_play import HowToPlayScreen
         self.main_menu = MainMenu(self.assets, self.achievement_manager)
+        self.match_menu = MatchMenu(
+            self.assets, self.achievement_manager,
+            slot=self.active_slot, save_data=self.save_data or {})
         unlocked = self.save_data.get("unlocked_animals", ["tatu_bola"]) if self.save_data else ["tatu_bola"]
         biomes = self.save_data.get("unlocked_biomes", ["caatinga"]) if self.save_data else ["caatinga"]
         self.animal_select = AnimalSelectScreen(unlocked, self.assets, self.save_data or {})
@@ -535,6 +634,7 @@ class Game:
         self.achievements_screen = AchievementsScreen(
             self.achievement_manager, self.assets)
         self.cage_reward_screen = None
+        self.game_over_screen = None
 
     def _save_run_state(self):
         if not self.save_data:
@@ -549,8 +649,11 @@ class Game:
             self.save_data["run"] = None
             self.save_data["run_active"] = False
 
-    def _save_permanent_data(self):
+    def _save_permanent_data(self, preserve_run=False):
         if not self.save_data:
+            return
+        # A brand-new slot stays in memory until the player confirms a team.
+        if self._active_slot_is_new:
             return
         for animal in self.party:
             self.save_data = self.save_manager.save_animal_stats(
@@ -560,24 +663,169 @@ class Game:
             elapsed = time.time() - self._run_start_time
             self.save_data["play_time"] = self.save_data.get("play_time", 0) + elapsed
             self._run_start_time = time.time()
-        self._save_run_state()
+        if not preserve_run:
+            self._save_run_state()
         if self.active_slot is not None:
             self.achievement_manager.sync_from_save(
                 self.active_slot, self.save_data)
         self.save_manager.save_game(self.save_data)
 
-    def _defeat_run(self):
-        self.map_generator = None
-        self.combat_system = None
-        self.combat_ui = None
-        self.achievement_manager.set_flag("game_over_pending", True)
-        self._save_permanent_data()
+    def _leave_match_to_saves(self):
+        """Close only the current save session and go back to slot selection.
+
+        This is deliberately different from the main-menu SAIR action: it
+        persists the save, drops every runtime reference to it and returns to
+        the save selection screen.  The application keeps running and the slot
+        (including its stored journey) is never deleted.
+        """
+        if self.save_data is not None:
+            try:
+                # The match menu is not inside a running map, so keep the
+                # already stored run untouched instead of clearing it.
+                self._save_permanent_data(preserve_run=True)
+            except Exception as e:
+                print(f"[Game] Falha ao salvar ao sair da partida: {e}")
+
+        self._clear_journey_runtime()
+        self._run_start_time = 0
         try:
-            # The run is over: leave every journey/boss context behind.
+            self.map_exit_dialog.close()
+        except Exception:
+            pass
+        self.party = []
+        self.save_data = None
+        self.active_slot = None
+        self._active_slot_is_new = False
+        self._team_is_new_save = False
+        self._team_return_context = None
+        self._settings_origin = None
+        self._settings_prev_state = None
+        try:
+            self.save_manager.active_slot = None
+        except Exception:
+            pass
+        try:
+            self.achievement_manager.active_slot = None
+        except Exception:
+            pass
+
+        self.setup_screens()
+        self._open_journey_select()
+        try:
+            self.music_manager.stop()
             self.music_manager.play_menu_music()
         except Exception:
             pass
+
+    def _defeat_run(self):
+        """Show the Game Over screen once the whole party has been defeated.
+
+        Permanent save data (unlocked animals/biomes, bestiary, statistics,
+        gold, settings...) is preserved.  The temporary run is cleared and the
+        team is restored with the existing recovery rule (25% HP, minimum 1)
+        before the result is persisted, so the save is always playable.  The
+        player then chooses between retrying (fresh run at the first map) or
+        returning to the save's internal menu.
+        """
+        # Defensive guard: a defeat must never stack screens or restart twice.
+        if self.state == GameState.GAME_OVER:
+            return
+
+        # Account for the current attempt's play time before resetting the
+        # runtime clock, so statistics are not lost.
+        if self.save_data is not None and self._run_start_time > 0:
+            self.save_data["play_time"] = (
+                self.save_data.get("play_time", 0)
+                + (time.time() - self._run_start_time))
+        self._run_start_time = 0
+
+        # Drop the battle/event/map that caused the defeat.
+        self._clear_journey_runtime()
+
+        self.achievement_manager.set_flag("game_over_pending", True)
+
+        # Existing recovery rule: defeated animals come back alive with a
+        # quarter of their maximum HP.
+        for animal in self.party:
+            if not animal.is_alive or animal.hp <= 0:
+                animal.hp = max(1, animal.max_hp // 4)
+                animal.is_alive = True
+
+        # The attempt is over: persist permanent progress and clear only the
+        # temporary run.  The slot itself is never deleted.
+        if self.save_data is not None:
+            self.save_data["run"] = None
+            self.save_data["run_active"] = False
+        self._save_permanent_data()
+
+        # No battle/journey track should keep playing under the result screen.
+        try:
+            self.music_manager.stop()
+        except Exception:
+            pass
+
+        # Build the screen from the just-persisted save so the statistics and
+        # team shown match the stored state.
+        from src.ui.game_over_screen import GameOverScreen
+        self.game_over_screen = GameOverScreen(
+            self.assets, self.save_data or {}, self.party)
+        self.map_ui = None
         self.state = GameState.GAME_OVER
+
+    def _retry_from_game_over(self):
+        """Start a brand-new attempt at the first map of the journey."""
+        if self.state != GameState.GAME_OVER:
+            return
+        self.game_over_screen = None
+        self._clear_journey_runtime()
+
+        for animal in self.party:
+            if not animal.is_alive or animal.hp <= 0:
+                animal.hp = max(1, animal.max_hp // 4)
+                animal.is_alive = True
+
+        biomes = (self.save_data or {}).get(
+            "unlocked_biomes", ["caatinga"]) or ["caatinga"]
+        self.current_biome = biomes[0]
+
+        if self.save_data is not None:
+            self.save_data["run"] = None
+            self.save_data["run_active"] = False
+            self._save_permanent_data()
+
+        self.start_new_run()
+        self._save_permanent_data()
+
+    def _leave_game_over_to_match(self):
+        """Return to the internal menu of the current save (never deletes it)."""
+        if self.state != GameState.GAME_OVER:
+            return
+        self.game_over_screen = None
+        self._clear_journey_runtime()
+
+        for animal in self.party:
+            if not animal.is_alive or animal.hp <= 0:
+                animal.hp = max(1, animal.max_hp // 4)
+                animal.is_alive = True
+
+        if self.save_data is not None:
+            self.save_data["run"] = None
+            self.save_data["run_active"] = False
+            self._save_permanent_data()
+
+        self._settings_origin = None
+        self._settings_prev_state = None
+        self.setup_screens()
+        if self.save_data is None:
+            self._open_journey_select()
+            return
+
+        self.state = GameState.MATCH_MENU
+        try:
+            self.music_manager.stop()
+            self.music_manager.play_menu_music()
+        except Exception:
+            pass
 
     def _convert_event(self, event):
         if hasattr(event, 'pos'):
@@ -634,12 +882,33 @@ class Game:
             if result is not None:
                 actions = {
                     "play": self._open_journey_select,
-                    "how_to_play": self._open_how_to_play,
-                    "bestiary": self._open_bestiary,
-                    "achievements": self._open_achievements,
-                    "acampamento": self._open_acampamento,
+                    "how_to_play": lambda: self._open_how_to_play(
+                        return_state=GameState.MAIN_MENU),
                     "settings": lambda: self._open_settings("main_menu"),
                     "quit": self._quit_game,
+                }
+                if result in actions:
+                    actions[result]()
+
+        elif self.state == GameState.MATCH_MENU:
+            try:
+                self.music_manager.play_menu_music()
+            except Exception:
+                pass
+            result = self.match_menu.handle_event(event)
+            if result is not None:
+                actions = {
+                    "play": self._open_team_from_match,
+                    "bestiary": lambda: self._open_bestiary(
+                        return_state=GameState.MATCH_MENU),
+                    "acampamento": self._open_acampamento,
+                    "achievements": lambda: self._open_achievements(
+                        return_state=GameState.MATCH_MENU),
+                    "settings": lambda: self._open_settings("match_menu"),
+                    "how_to_play": lambda: self._open_how_to_play(
+                        return_state=GameState.MATCH_MENU),
+                    "leave_match": self._leave_match_to_saves,
+                    "back_to_saves": self._open_journey_select,
                 }
                 if result in actions:
                     actions[result]()
@@ -647,24 +916,18 @@ class Game:
         elif self.state == GameState.ANIMAL_SELECT:
             result = self.animal_select.handle_event(event)
             if result == "back":
-                if self.animal_select.reteam_mode:
-                    self._open_journey_select()
-                else:
-                    self.state = GameState.MAIN_MENU
+                self._cancel_team_selection()
+                self.state = GameState.MATCH_MENU
             elif result == "start":
-                if self.animal_select.selected:
-                    self._sync_party_from_selection()
-                    self._start_initial_run()
-            elif isinstance(result, tuple) and result[0] == "reteam_confirm":
-                self._finish_reteam()
-            elif isinstance(result, tuple) and result[0] == "toggle":
-                self._sync_party_from_selection()
-                self._save_permanent_data()
+                self._finish_team_selection()
+            # Card toggles and LIMPAR EQUIPE only change the visual selection.
+            # Nothing is written to the save until CONFIRMAR.
 
         elif self.state == GameState.BIOME_SELECT:
             result = self.biome_select.handle_event(event)
             if result == "back":
-                self.state = GameState.MAIN_MENU
+                self.state = (GameState.MATCH_MENU if self.save_data
+                              else GameState.MAIN_MENU)
             elif result:
                 self.current_biome = result
                 self.start_new_run()
@@ -783,7 +1046,9 @@ class Game:
                         elif self.map_generator is not None:
                             self.state = GameState.MAP
                         else:
-                            self.state = GameState.MAIN_MENU
+                            self.state = GameState.MATCH_MENU if self.save_data else GameState.MAIN_MENU
+                    elif origin == "match_menu" and self.save_data is not None:
+                        self.state = GameState.MATCH_MENU
                     else:
                         self.state = GameState.MAIN_MENU
                     self._settings_origin = None
@@ -818,9 +1083,13 @@ class Game:
                     elif self.map_generator is not None:
                         self.state = GameState.MAP
                     else:
-                        self.state = GameState.MAIN_MENU
+                        self.state = (GameState.MATCH_MENU if self.save_data
+                                      else GameState.MAIN_MENU)
                 else:
-                    self.state = GameState.MAIN_MENU
+                    if origin == "match_menu" and self.save_data is not None:
+                        self.state = GameState.MATCH_MENU
+                    else:
+                        self.state = GameState.MAIN_MENU
                 self._settings_origin = None
                 self._settings_prev_state = None
                 self._sync_music_to_context()
@@ -885,11 +1154,12 @@ class Game:
             if self.how_to_play_screen:
                 result = self.how_to_play_screen.handle_event(event)
                 if result == "back":
-                    self.state = GameState.MAIN_MENU
-                    try:
-                        self.music_manager.play_menu_music()
-                    except Exception:
-                        pass
+                    target = self._how_to_play_return_state or GameState.MAIN_MENU
+                    if target == GameState.MATCH_MENU and self.save_data is None:
+                        target = GameState.MAIN_MENU
+                    self.state = target
+                    self._how_to_play_return_state = GameState.MAIN_MENU
+                    self._sync_music_to_context()
 
         elif self.state == GameState.SAVES:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -931,51 +1201,16 @@ class Game:
             self.handle_animal_encounter_events(event)
 
         elif self.state == GameState.GAME_OVER:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self._settings_origin = "journey"
-                self._settings_prev_state = self.state
-                try:
-                    self.settings_screen.sync(self.global_settings)
-                    if hasattr(self.settings_screen, 'set_in_journey'):
-                        self.settings_screen.set_in_journey(True)
-                except Exception:
-                    pass
-                self.state = GameState.SETTINGS
-                return
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                for animal in self.party:
-                    if not animal.is_alive or animal.hp <= 0:
-                        animal.hp = max(1, animal.max_hp // 4)
-                        animal.is_alive = True
-                self.map_generator = None
-                self._save_permanent_data()
-                try:
-                    self.music_manager.stop()
-                except Exception:
-                    pass
-                self.state = GameState.MAIN_MENU
-                try:
-                    self.music_manager.play_menu_music()
-                except Exception:
-                    pass
-                self.map_ui = None
-                self.combat_system = None
-                self.combat_ui = None
-                self.pending_level_ups = 0
-                self.pending_level_up_animals = []
-                self.current_level_up_animal = None
-                self.pending_evolutions = []
-                self.current_evolution_animal = None
-                self.current_evolution_stage = 0
-                self.next_biome_pending = None
-                self.pending_rescue_animal = None
-                self.pending_bonus_rescue = None
-                self.encounter_animal_id = None
-                self.encounter_step = "main"
-                self.encounter_swap_index = -1
-                self.cage_reward_screen = None
-                self.swap_screen = None
-                self.setup_screens()
+            # Only the Game Over screen consumes input.  The map/battle can no
+            # longer be reached while this state is active.
+            result = None
+            if self.game_over_screen is not None:
+                result = self.game_over_screen.handle_event(event)
+            if result == "retry":
+                self._retry_from_game_over()
+            elif result == "menu":
+                self._leave_game_over_to_match()
+            return
 
         elif self.state == GameState.VICTORY:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.map_generator is not None:
@@ -998,7 +1233,7 @@ class Game:
                 elif self.map_generator and self.map_generator.is_map_complete():
                     self.map_generator = None
                     self._save_permanent_data()
-                    self.state = GameState.MAIN_MENU
+                    self.state = GameState.MATCH_MENU
                     try:
                         self.music_manager.stop()
                         self.music_manager.play_menu_music()
@@ -1030,7 +1265,7 @@ class Game:
                 elif event.key == pygame.K_q:
                     self._save_permanent_data()
                     self.music_manager.stop()
-                    self.state = GameState.MAIN_MENU
+                    self.state = GameState.MATCH_MENU
                     try:
                         self.music_manager.play_menu_music()
                     except Exception:
@@ -1131,9 +1366,10 @@ class Game:
                     # Common/elite combat keeps the held journey track.
                     self.music_manager.hold_journey()
             elif self.map_generator is not None and state not in (
-                    GameState.MAIN_MENU, GameState.HOW_TO_PLAY,
-                    GameState.SAVES, GameState.ANIMAL_SELECT,
-                    GameState.BIOME_SELECT, GameState.GAME_OVER):
+                    GameState.MAIN_MENU, GameState.MATCH_MENU,
+                    GameState.HOW_TO_PLAY, GameState.SAVES,
+                    GameState.ANIMAL_SELECT, GameState.BIOME_SELECT,
+                    GameState.GAME_OVER):
                 self.music_manager.play_journey()
             else:
                 self.music_manager.play_menu_music()
@@ -1163,6 +1399,8 @@ class Game:
                                                                    GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
                 self._settings_origin = "journey"
                 self._settings_prev_state = self.state
+            elif self.state == GameState.MATCH_MENU:
+                self._settings_origin = "match_menu"
             else:
                 self._settings_origin = "main_menu"
         try:
@@ -1172,7 +1410,8 @@ class Game:
             pass
         self.state = GameState.SETTINGS
 
-    def _open_how_to_play(self):
+    def _open_how_to_play(self, return_state=None):
+        self._how_to_play_return_state = return_state or GameState.MAIN_MENU
         self.state = GameState.HOW_TO_PLAY
 
     def _open_music_box(self):
@@ -1219,33 +1458,48 @@ class Game:
         self.journey_select_screen = JourneySelectScreen(self.save_manager, self.assets)
         self.state = GameState.SAVES
 
-    def _open_reteam(self, slot):
-        if self.save_manager.get_slot_status(slot) != "ok":
+    def _cancel_team_selection(self):
+        """Restore the pre-team save context after the player backs out."""
+        context = self._team_return_context
+        self._team_return_context = None
+        self._team_is_new_save = False
+        if not context:
             return
-        data = self.save_manager.load_slot(slot)
-        if not data:
-            return
-        self.save_data = data
-        self.active_slot = slot
-        self.save_manager.active_slot = slot
-        self.achievement_manager.bind_slot(slot)
-        self.party = []
-        self._rebuild_party_from_save()
+        self.save_data = context.get("save_data")
+        self.party = context.get("party") or []
+        self.active_slot = context.get("active_slot")
+        self.save_manager.active_slot = context.get("manager_slot")
+        self._active_slot_is_new = context.get(
+            "active_slot_is_new", False)
+        try:
+            self.achievement_manager.active_slot = context.get(
+                "achievement_slot")
+        except Exception:
+            pass
+        # Rebuild the cached screens from the restored save context.
         self.setup_screens()
-        from src.ui.menu import AnimalSelectScreen
-        unlocked = self.save_data.get("unlocked_animals", ["tatu_bola"])
-        self.animal_select = AnimalSelectScreen(
-            unlocked, self.assets, self.save_data,
-            max_selection=MAX_PARTY_SIZE, reteam_mode=True)
-        self.state = GameState.ANIMAL_SELECT
 
-    def _finish_reteam(self):
+    def _finish_team_selection(self):
+        """Persist the confirmed team and enter/resume the selected journey."""
         if not self.animal_select.selected:
             return
         self._sync_party_from_selection()
-        biomes = self.save_data.get("unlocked_biomes", ["caatinga"])
-        self.current_biome = biomes[0] if biomes else "caatinga"
-        self.start_new_run()
+        self._team_return_context = None
+
+        if self._team_is_new_save:
+            self._team_is_new_save = False
+            # First time this slot is used: from now on it can be persisted.
+            self._active_slot_is_new = False
+            self._start_initial_run()
+            return
+
+        self._team_is_new_save = False
+        self._active_slot_is_new = False
+        # Existing save: resume the stored map when possible (a completed or
+        # missing run falls back to a new journey inside the same save).
+        self._resume_saved_run()
+        # Persist the chosen active_party without discarding the loaded run.
+        self._save_run_state()
         self._save_permanent_data()
 
     def handle_saves_events(self, event):
@@ -1256,13 +1510,13 @@ class Game:
             return
         if result == "back":
             self.state = GameState.MAIN_MENU
+            self._team_is_new_save = False
+            self._team_return_context = None
             self.setup_screens()
-        elif isinstance(result, tuple) and result[0] == "continue":
-            self._continue_save(result[1])
-        elif isinstance(result, tuple) and result[0] == "reteam":
-            self._open_reteam(result[1])
-        elif isinstance(result, tuple) and result[0] == "new":
-            self._start_new_journey(result[1])
+        elif isinstance(result, tuple) and result[0] in ("team", "new", "continue"):
+            # Selecting/creating a slot opens that save's internal menu.  The
+            # journey only starts later, from the match menu.
+            self._open_match_menu(result[1])
         elif isinstance(result, tuple) and result[0] == "deleted":
             from src.ui.menu import JourneySelectScreen
             if self.active_slot == result[1]:
@@ -1322,6 +1576,30 @@ class Game:
             self.state = GameState.SWAP_ANIMAL
             return False
 
+    def _end_journey_to_match_menu(self):
+        """Save the journey and return to the internal menu of this save."""
+        try:
+            self._save_permanent_data()
+        except Exception:
+            pass
+        try:
+            self.map_exit_dialog.close()
+        except Exception:
+            pass
+        self.inventory_screen = None
+        self._overlay_return_state = None
+        self._clear_journey_runtime()
+        self._run_start_time = 0
+        self.setup_screens()
+        self.state = GameState.MATCH_MENU
+        try:
+            self.music_manager.stop()
+            self.music_manager.play_menu_music()
+        except Exception:
+            pass
+        self._settings_origin = None
+        self._settings_prev_state = None
+
     def _end_journey_to_main_menu(self):
         try:
             self._save_permanent_data()
@@ -1376,7 +1654,8 @@ class Game:
         self._settings_prev_state = None
 
     def _quit_game(self):
-        self._save_permanent_data()
+        if not self._active_slot_is_new:
+            self._save_permanent_data()
         self.running = False
 
     def handle_acampamento_events(self, event):
@@ -1387,7 +1666,8 @@ class Game:
         action = result[0]
 
         if action == "back":
-            self.state = GameState.MAIN_MENU
+            self.state = (GameState.MATCH_MENU if self.save_data
+                          else GameState.MAIN_MENU)
             try:
                 self.music_manager.play_menu_music()
             except Exception:
@@ -1425,7 +1705,7 @@ class Game:
             result = self.map_exit_dialog.handle_event(event)
             if result == "confirm":
                 self.map_exit_dialog.close()
-                self._end_journey_to_main_menu()
+                self._end_journey_to_match_menu()
             elif result == "cancel":
                 self.map_exit_dialog.close()
             return
@@ -2255,6 +2535,7 @@ class Game:
     def render(self):
         renderers = {
             GameState.MAIN_MENU: lambda: self.main_menu.draw(self.screen),
+            GameState.MATCH_MENU: lambda: self.match_menu.draw(self.screen),
             GameState.ANIMAL_SELECT: lambda: self.animal_select.draw(self.screen),
             GameState.BIOME_SELECT: lambda: self.biome_select.draw(self.screen),
             GameState.SETTINGS: lambda: self.settings_screen.draw(self.screen),
@@ -2702,29 +2983,11 @@ class Game:
                            SCREEN_WIDTH // 2, 550, 24, SERTAO_CREAM)
 
     def _render_game_over(self):
-        self.assets.draw_background(self.screen, "combat")
-
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((30, 10, 10, 180))
-        self.screen.blit(overlay, (0, 0))
-
-        area = pygame.Rect(SCREEN_WIDTH // 2 - 400, 50, 800, 620)
-        items = [
-            ("GAME OVER", 72, RED),
-            ("", 10, WHITE),
-            ("Seus animais ainda precisam de voce...", 26, SERTAO_CREAM),
-        ]
-        if self.party:
-            items.append(("", 8, WHITE))
-            for animal in self.party:
-                emoji = ANIMAL_EMOJIS.get(animal.animal_id, "")
-                items.append((f"{emoji} {animal.name} - Nivel {animal.level}",
-                              24, SERTAO_GOLD))
-            items.append(("", 6, WHITE))
-            items.append(("Progresso salvo permanentemente!", 20, GREEN))
-        items.append(("", 12, WHITE))
-        items.append(("Clique para voltar ao menu principal", 20, GRAY))
-        draw_text_block_colored(self.screen, items, area, line_spacing=8)
+        if self.game_over_screen is None:
+            from src.ui.game_over_screen import GameOverScreen
+            self.game_over_screen = GameOverScreen(
+                self.assets, self.save_data or {}, self.party)
+        self.game_over_screen.draw(self.screen)
 
     def _render_victory(self):
         self.assets.draw_background(self.screen, "combat")

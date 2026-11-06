@@ -10,7 +10,7 @@ from src.ui.layout import (UILayout, LayoutArea, draw_sertao_panel, draw_sertao_
                            get_mouse_pos, get_button_metrics,
                            make_centered_tabs, make_back_button)
 from src.ui.text import (get_font, wrap_text_chars, wrap_text, draw_text_centered,
-                         draw_text_block_colored, draw_text_right)
+                         draw_text_block_colored, draw_text_right, draw_text_left)
 from src.ui.components import draw_bar
 
 ANIMAL_EMOJIS = {
@@ -36,19 +36,20 @@ RARITY_COLORS = {"Comum": GRAY, "Raro": BLUE, "\u00c9pico": PURPLE, "Lend\u00e1r
 
 
 class MainMenu:
+    """The game's front page: only save-independent options live here."""
+
     ENTRIES = [
         ("JOGAR", "play"),
-        ("BESTIARIO", "bestiary"),
-        ("ACAMPAMENTO", "acampamento"),
-        ("CONQUISTAS", "achievements"),
-        ("CONFIGURACOES", "settings"),
         ("SOBRE", "how_to_play"),
+        ("CONFIGURACOES", "settings"),
         ("SAIR", "quit"),
     ]
 
     BUTTON_WIDTH = 380
     BUTTON_GAP = 6
     COLUMN_CENTER_Y = 415
+    # Actions drawn with the generic wooden style (no illustrated asset).
+    FALLBACK_ACTIONS = set()
 
     def __init__(self, assets=None, achievement_manager=None):
         self.assets = assets
@@ -64,7 +65,8 @@ class MainMenu:
         heights = []
         for _label, action in self.ENTRIES:
             image = None
-            if self.assets is not None:
+            if (self.assets is not None
+                    and action not in self.FALLBACK_ACTIONS):
                 image = self.assets.get_main_menu_button(
                     action, self.BUTTON_WIDTH)
             images.append(image)
@@ -174,260 +176,368 @@ class MainMenu:
             surface.blit(vs, version_rect)
 
 
+class MatchMenu(MainMenu):
+    """Internal menu of the selected save.
+
+    It reuses the original main-menu artwork and button style, but every
+    save-dependent feature is opened from here, after a slot has been chosen.
+    """
+
+    ENTRIES = [
+        ("JOGAR", "play"),
+        ("BESTIARIO", "bestiary"),
+        ("ACAMPAMENTO", "acampamento"),
+        ("CONQUISTAS", "achievements"),
+        ("CONFIGURACOES", "settings"),
+        ("SOBRE", "how_to_play"),
+        ("SAIR", "leave_match"),
+    ]
+
+    BUTTON_WIDTH = 300
+    BUTTON_GAP = 4
+    COLUMN_CENTER_Y = 415
+
+    def __init__(self, assets=None, achievement_manager=None, slot=None,
+                 save_data=None):
+        self.slot = slot
+        self.save_data = save_data or {}
+        super().__init__(assets, achievement_manager)
+        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 68, 190, 42)
+        self.hover_back = False
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return "back_to_saves"
+
+        if event.type == pygame.MOUSEMOTION:
+            self.hover_back = self.back_button.collidepoint(event.pos)
+
+        if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+                and self.back_button.collidepoint(event.pos)):
+            return "back_to_saves"
+
+        return super().handle_event(event)
+
+    def _match_summary(self):
+        biome_id = None
+        run = self.save_data.get("run")
+        if isinstance(run, dict):
+            biome_id = run.get("current_biome")
+        if not biome_id:
+            unlocked = self.save_data.get("unlocked_biomes") or ["caatinga"]
+            biome_id = unlocked[-1]
+        biome = load_biomes().get(biome_id, {}).get("name", biome_id)
+        run_active = bool(isinstance(run, dict) and run.get("map"))
+        status = "Jornada em andamento" if run_active else "Aventura pronta"
+        return "SAVE {}  |  {}  |  {}".format(
+            self.slot or "-", biome, status)
+
+    def draw(self, surface):
+        super().draw(surface)
+
+        summary = self._match_summary()
+        panel = pygame.Rect(CENTER_X - 280, SCREEN_HEIGHT - 80, 560, 24)
+        draw_sertao_panel(surface, panel.x, panel.y, panel.w, panel.h,
+                          alpha=190)
+        draw_text(surface, summary, (CENTER_X, panel.centery),
+                  font_size=15, color=SERTAO_CREAM, center=True)
+
+        hovered = self.back_button.collidepoint(get_mouse_pos())
+        draw_sertao_button(surface, self.back_button, "SELECIONAR SAVE",
+                           is_hovered=hovered, font_size=16)
+
+
 class AnimalSelectScreen:
+    """Team selection drawn on top of the supplied ``SeleçãoEquipe.png`` art.
+
+    The six cards, names, roles, title and painted buttons come from the
+    original image.  Only animal sprites, locked placeholders, selection
+    feedback and the chosen-team row are rendered dynamically.
+    """
+
+    SOURCE_WIDTH = 1600
+    SOURCE_HEIGHT = 900
+
+    ANIMAL_ORDER = (
+        "tatu_bola",
+        "lobo_guara",
+        "arara_azul",
+        "tamandua_bandeira",
+        "capivara",
+        "onca_pintada",
+    )
+
+    # Card geometry measured in the original 1600x900 artwork.
+    CARD_CENTERS_X = (152, 415, 673, 931, 1190, 1452)
+    CARD_HALF_WIDTH = 115
+    CARD_TOP = 265
+    CARD_BOTTOM = 635
+    SPRITE_CENTER_Y = 426
+    SPRITE_BOX = 190
+
+    TEAM_SLOT_CENTERS = ((560, 735), (808, 735), (1056, 735))
+    CLEAR_SOURCE_RECT = (58, 720, 312, 116)
+    CONFIRM_SOURCE_RECT = (1245, 720, 318, 116)
+
     def __init__(self, unlocked_animals=None, assets=None, save_data=None,
                  max_selection=3, reteam_mode=False):
         self.animals = load_animals()
-        self.unlocked_animals = unlocked_animals or ["tatu_bola"]
+        self.unlocked_animals = [
+            aid for aid in (unlocked_animals or ["tatu_bola"]) if aid
+        ]
         self.save_data = save_data or {}
         self.assets = assets
         self.max_selection = max_selection
         self.reteam_mode = reteam_mode
-        self.confirm_open = False
-        self.hover_confirm = False
         self.selected = []
         self.hover_index = -1
-        self.start_hover = False
+        self.hover_clear = False
+        self.hover_confirm = False
+        self.message = ""
+        self.message_error = False
         self.layout = UILayout()
-        self._build_cards()
+        self._build_ui()
+
+    # ------------------------------------------------------------- layout
+
+    def _source_rect(self, x, y, w, h):
+        sx = SCREEN_WIDTH / self.SOURCE_WIDTH
+        sy = SCREEN_HEIGHT / self.SOURCE_HEIGHT
+        return pygame.Rect(
+            int(round(x * sx)), int(round(y * sy)),
+            max(1, int(round(w * sx))), max(1, int(round(h * sy))))
+
+    def _source_point(self, x, y):
+        return (int(round(x * SCREEN_WIDTH / self.SOURCE_WIDTH)),
+                int(round(y * SCREEN_HEIGHT / self.SOURCE_HEIGHT)))
+
+    def _source_size(self, value):
+        return max(1, int(round(
+            value * SCREEN_HEIGHT / self.SOURCE_HEIGHT)))
+
+    def _build_ui(self):
+        animal_data = self.save_data.get("animal_data", {}) or {}
+        self.cards = []
+        self.card_by_id = {}
+
+        for index, aid in enumerate(self.ANIMAL_ORDER):
+            animal = self.animals.get(aid)
+            if animal is None:
+                continue
+            center_x = self.CARD_CENTERS_X[index]
+            card_rect = self._source_rect(
+                center_x - self.CARD_HALF_WIDTH, self.CARD_TOP,
+                self.CARD_HALF_WIDTH * 2,
+                self.CARD_BOTTOM - self.CARD_TOP)
+            sprite_rect = self._source_rect(
+                center_x - self.SPRITE_BOX // 2,
+                self.SPRITE_CENTER_Y - self.SPRITE_BOX // 2,
+                self.SPRITE_BOX, self.SPRITE_BOX)
+            info = animal_data.get(aid, {}) or {}
+            card = {
+                "id": aid,
+                "animal": animal,
+                "rect": card_rect,
+                "sprite_rect": sprite_rect,
+                "unlocked": aid in self.unlocked_animals,
+                "level": info.get("level", 1) or 1,
+                "evolution_stage": info.get("evolution_stage", 0) or 0,
+            }
+            self.cards.append(card)
+            self.card_by_id[aid] = card
+
+        self.clear_rect = self._source_rect(*self.CLEAR_SOURCE_RECT)
+        self.confirm_rect = self._source_rect(*self.CONFIRM_SOURCE_RECT)
+        self.back_button = pygame.Rect(12, 12, 44, 40)
 
     def set_selection(self, ids):
-        self.selected = [a for a in ids if a in self.unlocked_animals][:self.max_selection]
+        """Preselect animals coming from the loaded save."""
+        selected = []
+        for aid in ids or []:
+            if (aid in self.unlocked_animals and aid in self.animals
+                    and aid not in selected):
+                selected.append(aid)
+        self.selected = selected[:self.max_selection]
 
-    def _confirm_modal_rects(self):
-        return {
-            "confirm": pygame.Rect(CENTER_X + 20, CENTER_Y + 90, 190, 44),
-            "back": pygame.Rect(CENTER_X - 210, CENTER_Y + 90, 190, 44),
-        }
-
-    def _build_cards(self):
-        self.cards = []
-        animal_ids = list(self.animals.keys())
-        card_w, card_h = 500, 78
-        spacing = 6
-        count = len(animal_ids)
-        start_y = 165
-
-        for i, aid in enumerate(animal_ids):
-            x = CENTER_X - card_w // 2
-            y = start_y + i * (card_h + spacing)
-            self.cards.append({
-                "id": aid,
-                "animal": self.animals[aid],
-                "rect": pygame.Rect(x, y, card_w, card_h),
-                "unlocked": aid in self.unlocked_animals,
-                "level": self.save_data.get("animal_data", {}).get(aid, {}).get("level", 1),
-                "evolution_stage": self.save_data.get("animal_data", {}).get(aid, {}).get("evolution_stage", 0),
-            })
-
-        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 65, 140, 42)
-        self.start_rect = pygame.Rect(CENTER_X - 180, 104, 360, 46)
+    # -------------------------------------------------------------- events
 
     def handle_event(self, event):
-        if self.reteam_mode and self.confirm_open:
-            if event.type == pygame.MOUSEMOTION:
-                rects = self._confirm_modal_rects()
-                self.hover_confirm = rects["confirm"].collidepoint(event.pos)
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                rects = self._confirm_modal_rects()
-                if rects["confirm"].collidepoint(event.pos):
-                    self.confirm_open = False
-                    return ("reteam_confirm", list(self.selected))
-                if rects["back"].collidepoint(event.pos):
-                    self.confirm_open = False
-            return None
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return "back"
 
         if event.type == pygame.MOUSEMOTION:
             self.hover_index = -1
-            self.start_hover = False
-            self.hover_confirm = False
-            for i, c in enumerate(self.cards):
-                if c["rect"].collidepoint(event.pos) and c["unlocked"]:
+            for i, card in enumerate(self.cards):
+                if card["rect"].collidepoint(event.pos) and card["unlocked"]:
                     self.hover_index = i
                     break
-            if self.start_rect.collidepoint(event.pos):
-                self.start_hover = True
+            self.hover_clear = self.clear_rect.collidepoint(event.pos)
+            self.hover_confirm = self.confirm_rect.collidepoint(event.pos)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for c in self.cards:
-                if c["rect"].collidepoint(event.pos) and c["unlocked"]:
-                    aid = c["id"]
-                    if aid in self.selected:
-                        self.selected.remove(aid)
-                    elif len(self.selected) < self.max_selection:
-                        self.selected.append(aid)
-                    return ("toggle", aid)
             if self.back_button.collidepoint(event.pos):
                 return "back"
-            if self.start_rect.collidepoint(event.pos) and self.selected:
-                if self.reteam_mode:
-                    self.confirm_open = True
+
+            for card in self.cards:
+                if not card["rect"].collidepoint(event.pos):
+                    continue
+                if not card["unlocked"]:
+                    self.message = "Este animal ainda nao foi desbloqueado."
+                    self.message_error = True
                     return None
+                aid = card["id"]
+                if aid in self.selected:
+                    self.selected.remove(aid)
+                    self.message = ""
+                elif len(self.selected) < self.max_selection:
+                    self.selected.append(aid)
+                    self.message = ""
+                else:
+                    self.message = "Equipe completa: maximo de {} animais.".format(
+                        self.max_selection)
+                    self.message_error = True
+                    return ("toggle", aid)
+                return ("toggle", aid)
+
+            if self.clear_rect.collidepoint(event.pos):
+                self.selected = []
+                self.message = ""
+                return ("clear",)
+
+            if self.confirm_rect.collidepoint(event.pos):
+                if not self.selected:
+                    self.message = "Escolha pelo menos 1 animal para confirmar."
+                    self.message_error = True
+                    return None
+                self.message = ""
                 return "start"
         return None
 
+    # ---------------------------------------------------------------- draw
+
     def draw(self, surface):
         if self.assets:
-            self.assets.draw_background(surface, "combat")
+            # The supplied PNG has transparent cut-outs around the rounded UI,
+            # so it is composited over the regular menu scenery.
+            self.assets.draw_background(surface, "main_menu")
+            self.assets.draw_background(surface, "animal_select")
         else:
             surface.fill(SERTAO_DARK)
-
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 110))
-        surface.blit(overlay, (0, 0))
-
-        if self.reteam_mode:
-            draw_text(surface, "Escolha Novamente a Equipe", (CENTER_X, 30),
-                      font_size=44, color=SERTAO_GOLD, center=True)
-            draw_text(surface, "Selecione ate {} animais desbloqueados.".format(self.max_selection),
-                      (CENTER_X, 62), font_size=22, color=SERTAO_CREAM, center=True)
-        else:
-            draw_text(surface, "Escolha Seu Animal", (CENTER_X, 30),
-                      font_size=44, color=SERTAO_GOLD, center=True)
-            draw_text(surface, "Selecione ate {} animais para sua jornada.".format(self.max_selection),
-                      (CENTER_X, 62), font_size=22, color=SERTAO_CREAM, center=True)
-        pygame.draw.line(surface, SERTAO_BORDER, (CENTER_X - 200, 88), (CENTER_X + 200, 88), 2)
-
-        if self.reteam_mode:
-            label = "CONFIRMAR NOVA EQUIPE ({}/{})".format(len(self.selected), self.max_selection)
-        else:
-            label = "INICIAR JORNADA ({}/{})".format(len(self.selected), self.max_selection)
-        draw_sertao_button(surface, self.start_rect, label, self.start_hover,
-                           enabled=bool(self.selected))
-
-        if self.reteam_mode:
-            self._draw_current_team(surface)
 
         for i, card in enumerate(self.cards):
             self._draw_card(surface, card, i)
 
+        self._draw_selected_team(surface)
+
+        if self.message:
+            draw_text(
+                surface, self.message,
+                self._source_point(800, 655),
+                font_size=self._source_size(19),
+                color=SERTAO_RED if self.message_error else SERTAO_GOLD,
+                center=True)
+
+        self._draw_hotspot(
+            surface, self.clear_rect, self.hover_clear, enabled=True)
+        self._draw_hotspot(
+            surface, self.confirm_rect, self.hover_confirm,
+            enabled=bool(self.selected))
+
         bh = self.back_button.collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, self.back_button, "Voltar", bh)
-
-        if self.reteam_mode and self.confirm_open:
-            self._draw_reteam_confirm(surface)
-
-    def _get_current_party(self):
-        animal_map = (self.save_data or {}).get("animal_data", {}) or {}
-        members = []
-        for aid in self.selected[:self.max_selection]:
-            info = animal_map.get(aid, {}) or {}
-            animal_def = self.animals.get(aid, {})
-            members.append({
-                "id": aid,
-                "name": animal_def.get("name", aid),
-                "level": info.get("level", 1) or 1,
-                "evolution_stage": info.get("evolution_stage", 0) or 0,
-            })
-        return members
-
-    def _draw_current_team(self, surface):
-        px = CENTER_X + 255
-        panel_w = 300
-        draw_text(surface, "EQUIPE ATUAL", (px + panel_w // 2, 188),
-                  font_size=24, color=SERTAO_GOLD, center=True)
-        members = self._get_current_party()
-        stage_names = ["Base", "Evo 1"]
-        row_h, gap = 72, 16
-        block_h = self.max_selection * row_h + (self.max_selection - 1) * gap
-        start_y = (2 * CENTER_Y - block_h) // 2 + 20
-        for i in range(self.max_selection):
-            row = pygame.Rect(px, start_y + i * (row_h + gap), panel_w, row_h)
-            if i < len(members):
-                m = members[i]
-                draw_sertao_panel(surface, row.x, row.y, row.w, row.h,
-                                  SERTAO_GOLD, alpha=235)
-                spr = None
-                if self.assets:
-                    spr = self.assets.get_animal_sprite(
-                        m["id"], evolution_stage=m["evolution_stage"],
-                        max_width=58, max_height=58)
-                if spr:
-                    surface.blit(spr, spr.get_rect(midleft=(row.x + 12, row.centery)))
-                else:
-                    emoji = ANIMAL_EMOJIS.get(m["id"], "?")
-                    draw_text(surface, emoji, (row.x + 28, row.centery),
-                              font_size=36, color=SERTAO_CREAM, center=True)
-                tx = row.x + 84
-                stage = min(m["evolution_stage"], 1)
-                draw_text(surface, m["name"], (tx, row.y + 10),
-                          font_size=20, color=SERTAO_CREAM)
-                draw_text(surface, "Nv.{}  [{}]".format(m["level"], stage_names[stage]),
-                          (tx, row.y + 38), font_size=16, color=SERTAO_GOLD)
-            else:
-                draw_sertao_panel(surface, row.x, row.y, row.w, row.h,
-                                  SERTAO_BORDER, alpha=210)
-                draw_text(surface, "Sem animal", (row.centerx, row.centery),
-                          font_size=18, color=GRAY, center=True)
-        if not members:
-            draw_text(surface, "Selecione os animais na lista ao lado.",
-                      (px + panel_w // 2, start_y + block_h + 16),
-                      font_size=15, color=SERTAO_CREAM, center=True)
-
-    def _draw_reteam_confirm(self, surface):
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        surface.blit(overlay, (0, 0))
-        pw, ph = 560, 252
-        pr = pygame.Rect(CENTER_X - pw // 2, CENTER_Y - ph // 2, pw, ph)
-        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        panel.fill((*SERTAO_PANEL, 248))
-        surface.blit(panel, pr.topleft)
-        pygame.draw.rect(surface, SERTAO_GOLD, pr, 3, border_radius=10)
-
-        draw_text(surface, "CONFIRMAR NOVA EQUIPE?", (CENTER_X, pr.y + 40),
-                  font_size=24, color=SERTAO_GOLD, center=True)
-        for i, aid in enumerate(self.selected):
-            anim = self.animals.get(aid, {})
-            draw_text(surface, "{}.".format(i + 1) + " " + anim.get("name", aid),
-                      (CENTER_X, pr.y + 80 + i * 26),
-                      font_size=18, color=SERTAO_CREAM, center=True)
-
-        rects = self._confirm_modal_rects()
-        con_h = rects["confirm"].collidepoint(get_mouse_pos())
-        back_h = rects["back"].collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, rects["confirm"], "CONFIRMAR", con_h)
-        draw_sertao_button(surface, rects["back"], "VOLTAR", back_h)
+        draw_sertao_button(surface, self.back_button, "<", bh, font_size=20)
 
     def _draw_card(self, surface, card, index):
-        r = card["rect"]
-        animal = card["animal"]
-        hov = (self.hover_index == index)
+        sprite_rect = card["sprite_rect"]
         selected = card["id"] in self.selected
+        hovered = self.hover_index == index
 
-        draw_sertao_panel(surface, r.x, r.y, r.w, r.h,
-                          SERTAO_GOLD if (hov or selected) and card["unlocked"] else SERTAO_BORDER)
-
-        if self.assets and card["unlocked"]:
-            spr = self.assets.get_animal_sprite(card["id"],
-                                               evolution_stage=card.get("evolution_stage", 0),
-                                               max_width=50, max_height=50)
-            if spr:
-                surface.blit(spr, spr.get_rect(midleft=(r.x + 10, r.centery)))
+        sprite = None
+        if self.assets:
+            if card["unlocked"]:
+                sprite = self.assets.get_animal_sprite(
+                    card["id"], evolution_stage=card["evolution_stage"],
+                    max_width=sprite_rect.w, max_height=sprite_rect.h)
             else:
-                emoji = ANIMAL_EMOJIS.get(card["id"], "?")
-                draw_text(surface, emoji, (r.x + 20, r.y + 14), font_size=30)
+                sprite = self.assets.get_locked_animal_image(
+                    sprite_rect.w, sprite_rect.h)
 
-        tx = r.x + 75
-        if card["unlocked"]:
-            draw_text(surface, animal["name"], (tx, r.y + 6), font_size=22, color=SERTAO_CREAM)
-            stage = card.get("evolution_stage", 0)
-            stage_names = ["Base", "Evo 1"]
-            draw_text(surface, f"Nv.{card['level']} — {stage_names[min(stage, 1)]}", (tx + 200, r.y + 8),
-                      font_size=16, color=SERTAO_GOLD)
-            draw_text(surface, animal["role"], (tx + 260, r.y + 8), font_size=16, color=SERTAO_LIGHT)
-            s = animal["base_stats"]
-            draw_text(surface, f"HP:{s['hp']}  ATK:{s['attack']}  DEF:{s['defense']}  SPD:{s['speed']}",
-                      (tx, r.y + 30), font_size=14, color=SERTAO_CREAM)
-            diff = "Facil" if s["hp"] >= 70 else ("Medio" if s["speed"] >= 10 else "Dificil")
-            dc = GREEN if diff == "Facil" else (YELLOW if diff == "Medio" else RED)
-            draw_text(surface, f"Dificuldade: {diff}", (tx, r.y + 50), font_size=14, color=dc)
-            if selected:
-                draw_text(surface, "\u2713", (r.right - 26, r.y + 6),
-                          font_size=26, color=GREEN)
+        if sprite is not None:
+            surface.blit(sprite, sprite.get_rect(center=sprite_rect.center))
+        elif card["unlocked"]:
+            draw_text(surface, ANIMAL_EMOJIS.get(card["id"], "?"),
+                      sprite_rect.center, font_size=self._source_size(48),
+                      color=SERTAO_CREAM, center=True)
         else:
-            draw_text(surface, animal["name"], (tx, r.y + 10), font_size=22, color=GRAY)
-            draw_text(surface, "Bloqueado", (tx, r.y + 38), font_size=20, color=RED)
+            draw_text(surface, "?", sprite_rect.center,
+                      font_size=self._source_size(56),
+                      color=SERTAO_CREAM, center=True)
+
+        if card["unlocked"] and selected:
+            pygame.draw.rect(surface, SERTAO_GOLD, sprite_rect, 3,
+                             border_radius=10)
+            badge = (sprite_rect.right - 12, sprite_rect.top + 12)
+            pygame.draw.circle(surface, SERTAO_GOLD, badge, 12)
+            draw_text(surface, "\u2713", badge, font_size=16,
+                      color=SERTAO_DARK, center=True)
+        elif card["unlocked"] and hovered:
+            pygame.draw.rect(surface, SERTAO_LIGHT, sprite_rect, 2,
+                             border_radius=10)
+
+    def _draw_selected_team(self, surface):
+        slots = self.selected[:len(self.TEAM_SLOT_CENTERS)]
+        if not slots:
+            draw_text(
+                surface, "Escolha ate {} animais".format(self.max_selection),
+                self._source_point(808, 750),
+                font_size=self._source_size(22), color=SERTAO_CREAM,
+                center=True)
+            return
+
+        for index, aid in enumerate(slots):
+            card = self.card_by_id.get(aid)
+            if card is None:
+                continue
+            center = self._source_point(*self.TEAM_SLOT_CENTERS[index])
+            sprite = None
+            if self.assets:
+                sprite = self.assets.get_animal_sprite(
+                    aid, evolution_stage=card["evolution_stage"],
+                    max_width=self._source_size(96),
+                    max_height=self._source_size(96))
+            if sprite is not None:
+                surface.blit(sprite, sprite.get_rect(center=center))
+            else:
+                draw_text(surface, ANIMAL_EMOJIS.get(aid, "?"), center,
+                          font_size=self._source_size(42),
+                          color=SERTAO_CREAM, center=True)
+
+            name = card["animal"].get("name", aid)
+            name_pos = self._source_point(
+                self.TEAM_SLOT_CENTERS[index][0], 815)
+            max_width = self._source_size(160)
+            font_size = self._fit_font_size(
+                name, max_width, self._source_size(19))
+            draw_text(surface, name, name_pos, font_size=font_size,
+                      color=SERTAO_GOLD, center=True)
+
+    def _draw_hotspot(self, surface, rect, hovered, enabled=True):
+        if not hovered:
+            return
+        color = (255, 228, 130) if enabled else SERTAO_RED
+        glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        if enabled:
+            pygame.draw.rect(glow, (255, 220, 90, 30), glow.get_rect(),
+                             border_radius=8)
+        pygame.draw.rect(glow, color + (210,), glow.get_rect(), 2,
+                         border_radius=8)
+        surface.blit(glow, rect.topleft)
+
+    def _fit_font_size(self, text, max_width, base_size, min_size=10):
+        size = max(min_size, int(base_size))
+        while size > min_size and get_font(size).size(str(text))[0] > max_width:
+            size -= 1
+        return size
+
 
 
 class BestiaryScreen:
@@ -1289,49 +1399,127 @@ class CageRewardScreen:
 
 
 class JourneySelectScreen:
+    """Save-slot selector built on top of the original ``Saves.png`` art.
+
+    The supplied sheet is cropped at runtime into three horizontal panels and
+    drawn without stretching.  Only animal sprites, save values and the
+    transparent click target over the painted SELECIONAR button are rendered
+    by code.
+    """
+
+    PANEL_COUNT = 3
+    SOURCE_PANEL_WIDTH = 1518
+    SOURCE_PANEL_HEIGHT = 302
+
+    # Centres of the three square portrait openings, in source-panel pixels.
+    SOURCE_SLOT_CENTERS = ((153.0, 173.0), (316.0, 173.0), (479.5, 173.0))
+    SOURCE_SLOT_SIZE = 118.0
+
+    # Visible SELECIONAR button in the source artwork (panel-relative
+    # coordinates, including its painted border).
+    SOURCE_SELECT_RECT = (1197, 123, 275, 118)
+
+    # Value positions sit immediately after the painted labels.  The third
+    # value is the maximum width available on the source panel, used to shrink
+    # long region names/values without touching the artwork.
+    SOURCE_VALUE_ANCHORS = {
+        "biome": (768.0, 135.5, 190.0),
+        "gold": (1066.0, 134.5, 124.0),
+        "animals": (776.0, 217.0, 182.0),
+        "bosses": (1084.0, 219.5, 104.0),
+    }
+
     def __init__(self, save_manager, assets=None):
         self.save_manager = save_manager
         self.assets = assets
         self.layout = UILayout()
-        self.hover_slot = -1
+        self.hover_button = -1
         self.corrupt_slot = None
         self.confirm_slot = None
         self.action_slot = None
+        self._build_layout()
         self._refresh()
+
+    # ------------------------------------------------------------- layout
+
+    def _build_layout(self):
+        """Size the three panels proportionally to the virtual canvas."""
+        side_margin = max(56, int(SCREEN_WIDTH * 0.045))
+        top_margin = max(6, int(SCREEN_HEIGHT * 0.012))
+        gap = max(4, int(SCREEN_HEIGHT * 0.012))
+
+        avail_w = SCREEN_WIDTH - side_margin * 2
+        avail_h = SCREEN_HEIGHT - top_margin * 2 - gap * 2
+        panel_h = max(120, avail_h // self.PANEL_COUNT)
+        aspect = self.SOURCE_PANEL_WIDTH / self.SOURCE_PANEL_HEIGHT
+        panel_w = int(panel_h * aspect)
+        if panel_w > avail_w:
+            panel_w = avail_w
+            panel_h = int(panel_w / aspect)
+
+        total_h = panel_h * self.PANEL_COUNT + gap * (self.PANEL_COUNT - 1)
+        start_x = (SCREEN_WIDTH - panel_w) // 2
+        start_y = (SCREEN_HEIGHT - total_h) // 2
+
+        self.panel_rects = [
+            pygame.Rect(start_x, start_y + i * (panel_h + gap),
+                        panel_w, panel_h)
+            for i in range(self.PANEL_COUNT)
+        ]
+
+        self.panel_surfaces = []
+        for i in range(self.PANEL_COUNT):
+            surface = None
+            if self.assets is not None:
+                surface = self.assets.get_save_panel(i, panel_w)
+            self.panel_surfaces.append(surface)
+
+        self.select_rects = [
+            self._source_rect_to_screen(rect, self.SOURCE_SELECT_RECT)
+            for rect in self.panel_rects
+        ]
+
+        back_w = max(36, min(64, start_x - 16))
+        self.back_button = pygame.Rect(8, SCREEN_HEIGHT - 48, back_w, 40)
+
+    def _source_rect_to_screen(self, panel_rect, source_rect):
+        sx = panel_rect.w / self.SOURCE_PANEL_WIDTH
+        sy = panel_rect.h / self.SOURCE_PANEL_HEIGHT
+        x, y, w, h = source_rect
+        return pygame.Rect(
+            panel_rect.x + int(x * sx), panel_rect.y + int(y * sy),
+            max(1, int(w * sx)), max(1, int(h * sy)))
+
+    def _source_point_to_screen(self, panel_rect, point):
+        sx = panel_rect.w / self.SOURCE_PANEL_WIDTH
+        sy = panel_rect.h / self.SOURCE_PANEL_HEIGHT
+        return (panel_rect.x + int(point[0] * sx),
+                panel_rect.y + int(point[1] * sy))
+
+    # -------------------------------------------------------------- saves
 
     def _refresh(self):
         self.info_cache = {}
         self.corrupt_cache = {}
-        for s in range(1, 4):
-            status = self.save_manager.get_slot_status(s)
+        for slot in range(1, self.PANEL_COUNT + 1):
+            status = self.save_manager.get_slot_status(slot)
             if status == "corrupt":
-                self.corrupt_cache[s] = True
-                self.info_cache[s] = None
+                self.corrupt_cache[slot] = True
+                self.info_cache[slot] = None
             elif status == "ok":
-                self.info_cache[s] = self.save_manager.get_slot_info(s)
+                info = self.save_manager.get_slot_info(slot)
+                if info is None:
+                    self.corrupt_cache[slot] = True
+                    self.info_cache[slot] = None
+                else:
+                    self.info_cache[slot] = info
             else:
-                self.info_cache[s] = None
-        self.slot_rects = []
-        btn_w, btn_h = 480, 164
-        spacing = 12
-        start_y = self.layout.body.y + 18
-        for i in range(3):
-            x = CENTER_X - btn_w // 2
-            y = start_y + i * (btn_h + spacing)
-            self.slot_rects.append(pygame.Rect(x, y, btn_w, btn_h))
-        self.back_button = pygame.Rect(SAFE_MARGIN, SCREEN_HEIGHT - 65, 140, 42)
+                self.info_cache[slot] = None
 
-    def _slot_buttons(self, r):
-        select_btn = pygame.Rect(r.right - 150, r.centery - 20, 130, 40)
-        new_btn = pygame.Rect(r.right - 170, r.y + (r.h - 38) // 2, 145, 38)
-        return select_btn, new_btn
-
-    def _action_options(self, has_run):
-        options = []
-        if has_run:
-            options.append("continue")
-        options.extend(["reteam", "delete", "back"])
-        return options
+    def _action_options(self, has_run=None):
+        # Selecting a slot always opens its internal menu first.  The team
+        # screen is only opened later from the match menu's JOGAR action.
+        return ["reteam", "delete", "back"]
 
     def _action_modal_rects(self, has_run):
         options = self._action_options(has_run)
@@ -1350,8 +1538,8 @@ class JourneySelectScreen:
         rects = {}
         y = py + padding_top + title_h + sub_h + separation
         for i, opt in enumerate(options):
-            rects[opt] = pygame.Rect(CENTER_X - btn_w // 2, y + i * (btn_h + gap),
-                                     btn_w, btn_h)
+            rects[opt] = pygame.Rect(CENTER_X - btn_w // 2,
+                                     y + i * (btn_h + gap), btn_w, btn_h)
         return rects, panel_w, panel_h
 
     def _corrupt_modal_rects(self):
@@ -1370,6 +1558,8 @@ class JourneySelectScreen:
 
     def is_corrupt(self, slot):
         return self.save_manager.get_slot_status(slot) == "corrupt"
+
+    # ------------------------------------------------------------- events
 
     def handle_event(self, event):
         if self.confirm_slot is not None:
@@ -1394,7 +1584,7 @@ class JourneySelectScreen:
                     self._refresh()
                     if recovered:
                         self.corrupt_slot = None
-                        return ("continue", slot)
+                        return ("team", slot)
                 elif rects["delete"].collidepoint(event.pos):
                     self.corrupt_slot = None
                     self.save_manager.delete_slot(slot)
@@ -1411,12 +1601,9 @@ class JourneySelectScreen:
                 has_run = bool(info and info.get("run_active"))
                 rects, _, _ = self._action_modal_rects(has_run)
 
-                if has_run and rects["continue"].collidepoint(event.pos):
-                    self.action_slot = None
-                    return ("continue", slot)
                 if rects["reteam"].collidepoint(event.pos):
                     self.action_slot = None
-                    return ("reteam", slot)
+                    return ("team", slot)
                 if rects["delete"].collidepoint(event.pos):
                     self.action_slot = None
                     self.confirm_slot = slot
@@ -1426,50 +1613,71 @@ class JourneySelectScreen:
             return None
 
         if event.type == pygame.MOUSEMOTION:
-            self.hover_slot = -1
-            for i, r in enumerate(self.slot_rects):
-                if r.collidepoint(event.pos):
-                    self.hover_slot = i
+            self.hover_button = -1
+            for i, rect in enumerate(self.select_rects):
+                if rect.collidepoint(event.pos):
+                    self.hover_button = i
                     break
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_button.collidepoint(event.pos):
                 return "back"
-            for i, r in enumerate(self.slot_rects):
-                if not r.collidepoint(event.pos):
+
+            # Only the painted SELECIONAR buttons are clickable, never the
+            # whole panel.
+            for i, rect in enumerate(self.select_rects):
+                if not rect.collidepoint(event.pos):
                     continue
                 slot = i + 1
                 if self.corrupt_cache.get(slot):
                     self.corrupt_slot = slot
                     return None
-                select_btn, new_btn = self._slot_buttons(r)
-                info = self.info_cache.get(slot)
-                if info:
-                    self.action_slot = slot
-                else:
-                    if new_btn.collidepoint(event.pos):
-                        return ("new", slot)
-                return None
+                return ("team", slot)
+            return None
+
+        # Right-click keeps the previous reteam/delete actions available
+        # without turning the panel itself into a selection target.
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            for i, rect in enumerate(self.panel_rects):
+                if rect.collidepoint(event.pos):
+                    slot = i + 1
+                    if self.corrupt_cache.get(slot):
+                        self.corrupt_slot = slot
+                    elif self.info_cache.get(slot):
+                        self.action_slot = slot
+                    break
         return None
+
+    # -------------------------------------------------------------- draw
 
     def draw(self, surface):
         if self.assets:
-            self.assets.draw_background(surface, "combat")
+            self.assets.draw_background_cover(surface, "saves")
         else:
             surface.fill(SERTAO_DARK)
 
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 120))
+        overlay.fill((0, 0, 0, 28))
         surface.blit(overlay, (0, 0))
 
-        draw_text(surface, "ESCOLHER JORNADA", (CENTER_X, self.layout.header.center_y),
-                  font_size=40, color=SERTAO_GOLD, center=True)
+        for i, rect in enumerate(self.panel_rects):
+            surface_image = self.panel_surfaces[i]
+            if surface_image is not None:
+                surface.blit(surface_image, rect.topleft)
+            else:
+                draw_sertao_panel(surface, rect.x, rect.y, rect.w, rect.h)
 
-        for i in range(3):
             slot = i + 1
-            info = self.info_cache.get(slot)
-            corrupt = self.corrupt_cache.get(slot, False)
-            self._draw_slot(surface, slot, info, i, corrupt)
+            self._draw_panel_contents(
+                surface, rect, slot,
+                self.info_cache.get(slot),
+                self.corrupt_cache.get(slot, False))
+
+        if 0 <= self.hover_button < len(self.select_rects):
+            self._draw_select_hover(surface, self.select_rects[self.hover_button])
+
+        bh = self.back_button.collidepoint(get_mouse_pos())
+        draw_sertao_button(surface, self.back_button, "<", bh, font_size=20)
 
         if self.corrupt_slot is not None:
             self._draw_corrupt_msg(surface)
@@ -1478,8 +1686,77 @@ class JourneySelectScreen:
         elif self.action_slot is not None:
             self._draw_action_msg(surface)
 
-        bh = self.back_button.collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, self.back_button, "Voltar", bh)
+    def _draw_select_hover(self, surface, rect):
+        glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        pygame.draw.rect(glow, (255, 220, 90, 34), glow.get_rect(),
+                         border_radius=8)
+        pygame.draw.rect(glow, (255, 228, 130, 210), glow.get_rect(), 2,
+                         border_radius=8)
+        surface.blit(glow, rect.topleft)
+
+    def _draw_panel_contents(self, surface, rect, slot, info, corrupt):
+        sx = rect.w / self.SOURCE_PANEL_WIDTH
+        sy = rect.h / self.SOURCE_PANEL_HEIGHT
+
+        details = (info or {}).get("party_details") or []
+        sprite_size = max(24, int(self.SOURCE_SLOT_SIZE * min(sx, sy) * 0.96))
+        for index, member in enumerate(details[:3]):
+            cx, cy = self._source_point_to_screen(
+                rect, self.SOURCE_SLOT_CENTERS[index])
+            sprite = None
+            if self.assets is not None:
+                sprite = self.assets.get_animal_sprite(
+                    member.get("id", ""),
+                    evolution_stage=member.get("evolution_stage", 0),
+                    max_width=sprite_size, max_height=sprite_size)
+            if sprite is not None:
+                surface.blit(sprite, sprite.get_rect(center=(cx, cy)))
+            else:
+                draw_text(surface, "?", (cx, cy), font_size=max(14, sprite_size // 2),
+                          color=SERTAO_CREAM, center=True)
+
+        values = self._panel_values(info, corrupt)
+        base_size = max(13, int(rect.h * 0.132))
+        colors = {
+            "biome": SERTAO_RED if corrupt else SERTAO_CREAM,
+            "gold": (255, 220, 90),
+            "animals": SERTAO_CREAM,
+            "bosses": SERTAO_CREAM,
+        }
+        for key, (src_x, src_y, src_max_w) in self.SOURCE_VALUE_ANCHORS.items():
+            text = values[key]
+            x, y = self._source_point_to_screen(rect, (src_x, src_y))
+            max_w = max(18, int(src_max_w * sx))
+            font_size = self._fit_font_size(text, max_w, base_size)
+            draw_text_left(surface, text, (x + 1, y + 2), font_size=font_size,
+                           color=BLACK)
+            draw_text_left(surface, text, (x, y), font_size=font_size,
+                           color=colors[key])
+
+    def _panel_values(self, info, corrupt):
+        if corrupt:
+            return {
+                "biome": "CORROMPIDO",
+                "gold": "--",
+                "animals": "--",
+                "bosses": "--",
+            }
+        if info:
+            return {
+                "biome": str(info.get("biome", "-")),
+                "gold": str(info.get("gold", 0)),
+                "animals": str(info.get("animals_count", 0)),
+                "bosses": str(info.get("bosses_defeated", 0)),
+            }
+        return {"biome": "VAZIO", "gold": "--", "animals": "--", "bosses": "--"}
+
+    def _fit_font_size(self, text, max_width, base_size, min_size=11):
+        size = max(min_size, int(base_size))
+        while size > min_size and get_font(size).size(str(text))[0] > max_width:
+            size -= 1
+        return size
+
+    # ------------------------------------------------------------- modals
 
     def _draw_modal_backdrop(self, surface, pw, ph, border_color=SERTAO_RED):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -1517,16 +1794,13 @@ class JourneySelectScreen:
 
         draw_text(surface, "ESCOLHER A\u00c7\u00c3O", (CENTER_X, pr.y + 40),
                   font_size=26, color=SERTAO_GOLD, center=True)
-        draw_text(surface, "Como deseja entrar nesta jornada?",
+        draw_text(surface, "Escolha uma acao para este save.",
                   (CENTER_X, pr.y + 68), font_size=16, color=SERTAO_CREAM, center=True)
 
-        if has_run:
-            cont_h = rects["continue"].collidepoint(get_mouse_pos())
-            draw_sertao_button(surface, rects["continue"], "CONTINUAR RUN", cont_h)
         ret_h = rects["reteam"].collidepoint(get_mouse_pos())
         del_h = rects["delete"].collidepoint(get_mouse_pos())
         back_h = rects["back"].collidepoint(get_mouse_pos())
-        draw_sertao_button(surface, rects["reteam"], "ESCOLHER NOVAMENTE A EQUIPE", ret_h)
+        draw_sertao_button(surface, rects["reteam"], "ABRIR PARTIDA", ret_h)
         draw_sertao_button(surface, rects["delete"], "APAGAR SAVE", del_h,
                            color=(90, 40, 40) if not del_h else (120, 55, 55))
         draw_sertao_button(surface, rects["back"], "VOLTAR", back_h)
@@ -1551,93 +1825,6 @@ class JourneySelectScreen:
         draw_sertao_button(surface, rects["recover"], "TENTAR RECUPERAR", rec_h)
         draw_sertao_button(surface, rects["delete"], "APAGAR", del_h)
         draw_sertao_button(surface, rects["cancel"], "VOLTAR", can_h)
-
-    def _draw_slot(self, surface, slot, info, index, corrupt=False):
-        r = self.slot_rects[index]
-        is_hover = self.hover_slot == index
-
-        if corrupt:
-            border_color = SERTAO_RED
-            bg = (60, 40, 30) if not is_hover else (75, 50, 40)
-        else:
-            if is_hover:
-                border_color = SERTAO_GOLD
-                bg = (50, 40, 25)
-            else:
-                border_color = SERTAO_BORDER
-                bg = SERTAO_PANEL
-
-        panel = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
-        panel.fill((*bg, 220))
-        surface.blit(panel, r.topleft)
-        pygame.draw.rect(surface, border_color, r, 2, border_radius=8)
-
-        select_btn, new_btn = self._slot_buttons(r)
-
-        if corrupt:
-            draw_text(surface, f"SAVE {slot}", (r.x + 22, r.y + 12),
-                      font_size=26, color=SERTAO_GOLD)
-            draw_text(surface, "\u26a0 SAVE CORROMPIDO", (r.x + 22, r.y + 52),
-                      font_size=20, color=SERTAO_RED)
-            draw_text(surface, "Clique para recuperar ou apagar", (r.x + 22, r.y + 84),
-                      font_size=14, color=GRAY)
-        elif info:
-            draw_text(surface, f"SAVE {slot}", (r.x + 20, r.y + 12),
-                      font_size=26, color=SERTAO_GOLD)
-            draw_text(surface, f"Regiao: {info['biome']}", (r.x + 20, r.y + 44),
-                      font_size=16, color=SERTAO_CREAM)
-            draw_text(surface, f"Ouro: {info['gold']}", (r.x + 250, r.y + 44),
-                      font_size=16, color=SERTAO_GOLD)
-            draw_text(surface, f"Animais: {info['animals_count']}  Chefe: {info['bosses_defeated']}",
-                      (r.x + 20, r.y + 64), font_size=15, color=SERTAO_CREAM)
-
-            details = info.get("party_details") or []
-            if details:
-                names = ", ".join(m.get("name", "") for m in details[:3])
-            else:
-                names = "vazia"
-            if len(names) > 38:
-                names = names[:38] + "..."
-            draw_text(surface, f"Equipe: {names}", (r.x + 20, r.y + 88),
-                      font_size=13, color=SERTAO_LIGHT)
-
-            if info.get("run_active"):
-                run_color = SERTAO_GREEN
-                run_txt = "Run ativa: SIM"
-            else:
-                run_color = SERTAO_RED
-                run_txt = "Run ativa: NAO"
-            draw_text(surface, run_txt, (r.x + 255, r.y + 110),
-                      font_size=14, color=run_color)
-
-            spr_x = r.x + 20
-            for i, m in enumerate(details[:3]):
-                spr = None
-                if self.assets:
-                    spr = self.assets.get_animal_sprite(
-                        m["id"], evolution_stage=m.get("evolution_stage", 0),
-                        max_width=40, max_height=40)
-                if spr:
-                    spr_rect = spr.get_rect(midleft=(spr_x, r.y + 124))
-                    surface.blit(spr, spr_rect)
-                    spr_x += spr.get_width() + 10
-                else:
-                    emoji = ANIMAL_EMOJIS.get(m.get("id", ""), "?")
-                    draw_text(surface, emoji, (spr_x + 12, r.y + 124),
-                              font_size=30, color=SERTAO_CREAM, center=True)
-                    spr_x += 46
-
-            sel_h = select_btn.collidepoint(get_mouse_pos())
-            draw_sertao_button(surface, select_btn, "SELECIONAR", sel_h)
-        else:
-            draw_text(surface, f"SAVE {slot}", (r.x + 22, r.y + 12),
-                      font_size=26, color=SERTAO_GOLD)
-            draw_text(surface, "\U0001f512 VAZIO", (r.x + 22, r.y + 52),
-                      font_size=22, color=GRAY)
-            draw_text(surface, "Crie uma nova jornada neste slot",
-                      (r.x + 22, r.y + 84), font_size=14, color=GRAY)
-            nh = new_btn.collidepoint(get_mouse_pos())
-            draw_sertao_button(surface, new_btn, "NOVA JORNADA", nh)
 
 
 class SwapAnimalScreen:
