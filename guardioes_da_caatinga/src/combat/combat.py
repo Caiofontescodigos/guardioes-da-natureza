@@ -384,6 +384,23 @@ class CombatSystem:
         stats["low_hp_win"] = self._is_low_hp_win()
         return stats
 
+    def resolve_to_end(self, max_steps=10000):
+        """Run the remaining turns immediately until the battle is decided."""
+        if self.combat_ended:
+            return
+        steps = 0
+        while not self.combat_ended and steps < max_steps:
+            self.step_combat()
+            steps += 1
+        if not self.combat_ended:
+            # Safety net for pathological stalemates: decide by remaining HP.
+            party_hp = sum(max(0, u.hp) for u in self.party)
+            enemy_hp = sum(max(0, u.hp) for u in self.enemies)
+            self.player_won = party_hp > enemy_hp
+            self.combat_ended = True
+            self._log("Limite de turnos atingido.")
+            self._log("Vitória!" if self.player_won else "Derrota...")
+
     def _is_low_hp_win(self):
         if not self.player_won:
             return False

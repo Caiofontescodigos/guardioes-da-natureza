@@ -34,7 +34,8 @@ Dependências: `pygame>=2.5.0` (ver `requirements.txt`).
    - **TENTAR NOVAMENTE** (`Enter`/`Espaço` ou clique): inicia uma nova
      tentativa desde o primeiro mapa (Caatinga);
    - **VOLTAR AO MENU** (`Esc` ou clique): retorna ao menu interno do save
-     ativo.
+     ativo. Ao iniciar a próxima partida por esse menu, a jornada também
+     recomeça no primeiro mapa (Caatinga).
    Em ambos os casos o save atual é preservado (animais desbloqueados,
    bestiário, ouro, estatísticas, configurações e demais dados permanentes) e
    apenas o estado temporário da tentativa (mapa, batalha e eventos) é
@@ -50,7 +51,7 @@ são mais expostos pelo menu da partida.
 
 - **Batalhas automáticas** por turnos com sistema de turnos por velocidade:
   crítico, esquiva, buffs e debuffs, sangramento, veneno, escudo, contra-ataque
-  e regeneração.
+  e regeneração. Pressione `Enter` para pular a batalha direto para o resultado.
 - **Tela de Game Over** em painel compacto sobre o fundo da região onde a
   equipe foi derrotada, com estatísticas do save, equipe, tentativa rápida no
   primeiro mapa e retorno ao menu do save.
@@ -65,11 +66,23 @@ são mais expostos pelo menu da partida.
 - **Bestiário** com descobertas de animais e criaturas.
 - **Como Jogar**: guia rápido com objetivo, mapa, combate, equipe e controles.
 - **Acampamento**: melhorias permanentes e montagem de equipe (MELHORIAS/EQUIPE).
-- **Loja do Sertão** como evento de mapa.
+- **Armazém do Seu Zé** como evento de mapa: as quatro cartas da arte são
+  botões de compra por clique direto — Cruz Dourada (1000), Poção de Ataque
+  (25), Poção de Defesa (25) e Poção de Cura (20). O ouro e as mensagens de
+  compra aparecem sobre a própria arte da loja.
 - **Configurações** com tela cheia/resolução, volume e mudo da música,
   velocidade do combate, opções visuais de dano/log, confirmação ao sair e
   restauração dos padrões.
 - **3 slots de save** com migração automática de versões antigas (backup `.bak`).
+
+## Animais caídos
+
+- Um animal que chega a 0 HP fica **caído** e permanece assim após a vitória.
+- Para reanimar, use a **Cruz Dourada** no Inventário (todos os caídos voltam
+  com 50% do HP máximo) ou passe pelo **Acampamento**.
+- O indicador **CAÍDO** aparece na seleção de equipe e no Inventário.
+- A **derrota total** da equipe continua encerrando a tentativa e reiniciando
+  a jornada na Caatinga.
 
 ## Sistema de evolução permanente
 

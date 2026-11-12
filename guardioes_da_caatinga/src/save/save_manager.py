@@ -84,7 +84,7 @@ class SaveManager:
             "permanent_upgrades": {},
             "animal_data": {},
             "active_party": [],
-            "potions": {"health": 0, "defense": 0, "attack": 0},
+            "potions": {"health": 0, "defense": 0, "attack": 0, "revive": 0},
             "bestiary_discovered": ["tatu_bola"],
             "creatures_discovered": [],
             "statistics": {
@@ -131,7 +131,7 @@ class SaveManager:
         if not isinstance(potions, dict):
             potions = {}
             data["potions"] = potions
-        for potion_key in ("health", "defense", "attack"):
+        for potion_key in ("health", "defense", "attack", "revive"):
             try:
                 potions[potion_key] = max(0, int(potions.get(potion_key) or 0))
             except (TypeError, ValueError):
@@ -535,6 +535,7 @@ class SaveManager:
             "base_dodge": animal.base_dodge,
             "max_hp": animal.max_hp,
             "hp": max(0, animal.hp),
+            "is_alive": bool(getattr(animal, "is_alive", animal.hp > 0)),
             "regen_per_turn": animal.regen_per_turn,
             "cooldown_reduction": animal.cooldown_reduction,
             "damage_reduction": animal.damage_reduction,
@@ -561,8 +562,17 @@ class SaveManager:
         animal.base_dodge = saved.get("base_dodge", animal.base_dodge)
         animal.max_hp = saved.get("max_hp", animal.max_hp)
         saved_hp = saved.get("hp")
-        animal.hp = saved_hp if isinstance(saved_hp, (int, float)) and saved_hp > 0 else animal.max_hp
-        animal.is_alive = animal.hp > 0
+        if isinstance(saved_hp, (int, float)):
+            # Keep 0 HP: fallen animals stay fallen until revived by the
+            # Golden Cross or the Camp, instead of silently healing on load.
+            animal.hp = max(0, int(saved_hp))
+        else:
+            animal.hp = animal.max_hp
+        saved_alive = saved.get("is_alive")
+        if isinstance(saved_alive, bool):
+            animal.is_alive = saved_alive and animal.hp > 0
+        else:
+            animal.is_alive = animal.hp > 0
         animal.regen_per_turn = saved.get("regen_per_turn", 0)
         animal.cooldown_reduction = saved.get("cooldown_reduction", 0)
         animal.damage_reduction = saved.get("damage_reduction", 0)

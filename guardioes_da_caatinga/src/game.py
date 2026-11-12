@@ -42,6 +42,27 @@ EVENT_ICONS = ["Procurar", "Curar", "Fugir", "Lutar", "Explorar", "Descansar", "
 
 MAX_PARTY_SIZE = 3
 
+# Shop artwork and item definitions. The bounds are measured in the native
+# 1448x1086 background so the cards stay aligned at any window size.
+SHOP_BACKGROUND_FILENAME = "ArmazemdoSeuZe.jpeg"
+SHOP_SOURCE_WIDTH = 1448
+SHOP_SOURCE_HEIGHT = 1086
+SHOP_ITEMS = {
+    "cruz_dourada": {"name": "Cruz Dourada", "cost": 1000, "kind": "revive"},
+    "attack": {"name": "Pocao de Ataque", "cost": 25, "kind": "potion"},
+    "defense": {"name": "Pocao de Defesa", "cost": 25, "kind": "potion"},
+    "health": {"name": "Pocao de Cura", "cost": 20, "kind": "potion"},
+}
+SHOP_SLOT_BOUNDS = (
+    ("cruz_dourada", (614, 245, 911, 480)),
+    ("attack", (1066, 243, 1361, 480)),
+    ("defense", (614, 595, 913, 840)),
+    ("health", (1066, 597, 1363, 841)),
+)
+SHOP_BACK_BOUNDS = (516, 945, 925, 1035)
+SHOP_FEEDBACK_BOUNDS = (80, 650, 528, 880)
+SHOP_GOLD_BOUNDS = (28, 30, 300, 118)
+
 ANIMAL_EMOJIS = {
     "tatu_bola": "\U0001f994",
     "lobo_guara": "\U0001f98a",
@@ -242,7 +263,11 @@ class Game:
         self.node_gold_bonus = 1
 
         self.event_hover = -1
-        self.shop_hover = -1
+        self.shop_hover = None
+        self.shop_feedback = ""
+        self.shop_feedback_error = False
+        self.shop_feedback_until = 0
+        self.shop_back_hover = False
         self.victory_time = 0
         self.victory_xp_gained = 0
         self.victory_gold_gained = 0
@@ -451,6 +476,11 @@ class Game:
         self.setup_screens()
         self._resume_saved_run()
 
+    def _run_start_biome(self):
+        """Biome where every new attempt starts (the beginning of the run)."""
+        biomes = (self.save_data or {}).get("unlocked_biomes") or ["caatinga"]
+        return "caatinga" if "caatinga" in biomes else biomes[0]
+
     def _resume_saved_run(self):
         run = self.save_data.get("run")
         biome = run.get("current_biome") if isinstance(run, dict) else None
@@ -469,8 +499,7 @@ class Game:
             except Exception as e:
                 print(f"[Game] Falha ao restaurar run: {e}")
 
-        biomes = self.save_data.get("unlocked_biomes", ["caatinga"])
-        self.current_biome = biomes[-1] if biomes else "caatinga"
+        self.current_biome = self._run_start_biome()
         self.start_new_run()
 
     def _clear_journey_runtime(self):
@@ -505,7 +534,11 @@ class Game:
         self.node_xp_bonus = 0
         self.node_gold_bonus = 1
         self.event_hover = -1
-        self.shop_hover = -1
+        self.shop_hover = None
+        self.shop_feedback = ""
+        self.shop_feedback_error = False
+        self.shop_feedback_until = 0
+        self.shop_back_hover = False
         self.level_up_hover = -1
         self.encounter_hover = -1
         self.encounter_swap_hover = -1
@@ -584,14 +617,12 @@ class Game:
             animal.unlocked = True
             self.save_manager.restore_animal_stats(animal, self.save_data)
             animal.check_evolution()
-            animal.hp = animal.max_hp
             new_party.append(animal)
         self.party = new_party
         self.save_data = self.save_manager.save_party(self.save_data, self.party)
 
     def _start_initial_run(self):
-        biomes = self.save_data.get("unlocked_biomes", ["caatinga"])
-        self.current_biome = biomes[0] if biomes else "caatinga"
+        self.current_biome = self._run_start_biome()
         self.start_new_run()
         self._save_permanent_data()
 
@@ -821,9 +852,7 @@ class Game:
         self._clear_journey_runtime()
         self._recover_party_after_defeat()
 
-        biomes = (self.save_data or {}).get(
-            "unlocked_biomes", ["caatinga"]) or ["caatinga"]
-        self.current_biome = biomes[0]
+        self.current_biome = self._run_start_biome()
 
         if self.save_data is not None:
             self.save_data["run"] = None
@@ -1173,9 +1202,10 @@ class Game:
                     self.inventory_screen.save_data = self.save_data or {}
                     if used:
                         labels = {
-                            "health": "Pocao de Vida usada!",
+                            "health": "Pocao de Cura usada!",
                             "defense": "Pocao de Defesa usada!",
                             "attack": "Pocao de Ataque usada!",
+                            "revive": "Cruz Dourada usada! Caidos reanimados.",
                         }
                         self.inventory_screen.set_feedback(
                             labels.get(key, "Pocao usada!"))
@@ -1257,7 +1287,9 @@ class Game:
                     pass
                 self.state = GameState.SETTINGS
                 return
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if (event.type == pygame.MOUSEBUTTONDOWN
+                    or (event.type == pygame.KEYDOWN and event.key in (
+                        pygame.K_RETURN, pygame.K_KP_ENTER))):
                 if self.next_biome_pending:
                     self.current_biome = self.next_biome_pending
                     self.next_biome_pending = None
@@ -1577,7 +1609,6 @@ class Game:
             new_animal.unlocked = True
             self.save_manager.restore_animal_stats(new_animal, self.save_data)
             new_animal.check_evolution()
-            new_animal.hp = new_animal.max_hp
             self.party[idx] = new_animal
             self.save_data = self.save_manager.save_party(self.save_data, self.party)
             self._save_permanent_data()
@@ -1592,7 +1623,6 @@ class Game:
             animal.unlocked = True
             self.save_manager.restore_animal_stats(animal, self.save_data)
             animal.check_evolution()
-            animal.hp = animal.max_hp
             self.party.append(animal)
             self.save_data = self.save_manager.save_party(self.save_data, self.party)
             return True
@@ -1849,6 +1879,17 @@ class Game:
         if not self.combat_system:
             return
 
+        # ENTER skips the battle animation and resolves every remaining turn.
+        # When the battle is already over, it advances to the rewards just
+        # like a mouse click.
+        if event.type == pygame.KEYDOWN and event.key in (
+                pygame.K_RETURN, pygame.K_KP_ENTER):
+            if self.combat_system.combat_ended:
+                self._resolve_combat_rewards()
+            elif self.combat_ui is not None:
+                self.combat_ui.skip_to_end()
+            return
+
         if self.combat_system.combat_ended:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 self._resolve_combat_rewards()
@@ -1879,11 +1920,6 @@ class Game:
                         leveled_animals.append(animal)
                     levels_gained += (animal.level - old_level)
                     animal.gold += total_gold
-
-            for animal in self.party:
-                if not animal.is_alive:
-                    animal.hp = max(1, animal.max_hp // 4)
-                    animal.is_alive = True
 
             self.save_data = self.save_manager.update_statistics(self.save_data, "combats_won")
             self.save_data = self.save_manager.update_statistics(self.save_data, "gold_earned", total_gold)
@@ -2117,53 +2153,87 @@ class Game:
         self.map_ui = None
 
     def start_shop(self):
-        self.shop_hover = -1
+        self.shop_hover = None
+        self.shop_back_hover = False
+        self.shop_feedback = ""
+        self.shop_feedback_error = False
+        self.shop_feedback_until = 0
         self.state = GameState.SHOP
 
+    def _shop_image_rect(self):
+        """Return the fitted 4:3 shop artwork centered on the screen."""
+        ratio = min(SCREEN_WIDTH / SHOP_SOURCE_WIDTH,
+                    SCREEN_HEIGHT / SHOP_SOURCE_HEIGHT)
+        width = max(1, int(SHOP_SOURCE_WIDTH * ratio))
+        height = max(1, int(SHOP_SOURCE_HEIGHT * ratio))
+        return pygame.Rect((SCREEN_WIDTH - width) // 2,
+                           (SCREEN_HEIGHT - height) // 2,
+                           width, height)
+
+    def _shop_source_rect(self, bounds):
+        """Map a native rectangle from the shop artwork to screen space."""
+        left, top, right, bottom = bounds
+        base = self._shop_image_rect()
+        sx = base.w / SHOP_SOURCE_WIDTH
+        sy = base.h / SHOP_SOURCE_HEIGHT
+        return pygame.Rect(
+            base.x + int(left * sx), base.y + int(top * sy),
+            max(1, int((right - left) * sx)),
+            max(1, int((bottom - top) * sy)))
+
     def _shop_layout(self):
-        panel_w, panel_h = 600, 520
-        panel_x = (SCREEN_WIDTH - panel_w) // 2
-        panel_y = (SCREEN_HEIGHT - panel_h) // 2
-        panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-        items = [
-            ("Pocao de Vida", "Vai para o inventario. Use na tela Inventario.", 20),
-            ("Pocao de Defesa", "Vai para o inventario. Use na tela Inventario.", 25),
-            ("Pocao de Ataque", "Vai para o inventario. Use na tela Inventario.", 25),
-        ]
-        buttons = [pygame.Rect(panel_x + 35, panel_y + 120 + i * 90,
-                               panel_w - 70, 75) for i in range(len(items))]
-        back_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT - 80,
-                                200, 45)
-        return {"panel": panel, "items": items, "buttons": buttons,
-                "back": back_rect}
+        return {
+            "image": self._shop_image_rect(),
+            "slots": [(item_id, self._shop_source_rect(bounds))
+                      for item_id, bounds in SHOP_SLOT_BOUNDS],
+            "back": self._shop_source_rect(SHOP_BACK_BOUNDS),
+            "feedback": self._shop_source_rect(SHOP_FEEDBACK_BOUNDS),
+            "gold": self._shop_source_rect(SHOP_GOLD_BOUNDS),
+        }
+
+    def _shop_gold(self):
+        return self.party[0].gold if self.party else 0
+
+    def _set_shop_feedback(self, message, error=False):
+        self.shop_feedback = message
+        self.shop_feedback_error = error
+        self.shop_feedback_until = time.time() + 2.0
+
+    def _buy_shop_item(self, item_id):
+        item = SHOP_ITEMS.get(item_id)
+        if not item:
+            return
+        cost = int(item["cost"])
+        if self._shop_gold() < cost:
+            self._set_shop_feedback("Ouro insuficiente!", error=True)
+            return
+
+        for animal in self.party:
+            animal.gold = max(0, animal.gold - cost)
+        potion_key = "revive" if item_id == "cruz_dourada" else item_id
+        self._add_potion(potion_key)
+        self.achievement_manager.record("gold_spent", cost)
+        self._save_permanent_data()
+        self._set_shop_feedback(f"Comprado: {item['name']}!")
 
     def handle_shop_events(self, event):
-        shop_items = [
-            ("Pocao de Vida", "Vai para o inventario. Use na tela Inventario.", 20, lambda: self._add_potion("health")),
-            ("Pocao de Defesa", "Vai para o inventario. Use na tela Inventario.", 25, lambda: self._add_potion("defense")),
-            ("Pocao de Ataque", "Vai para o inventario. Use na tela Inventario.", 25, lambda: self._add_potion("attack")),
-        ]
         layout = self._shop_layout()
 
         if event.type == pygame.MOUSEMOTION:
-            self.shop_hover = -1
-            for i, btn_rect in enumerate(layout["buttons"]):
+            self.shop_hover = None
+            for item_id, btn_rect in layout["slots"]:
                 if btn_rect.collidepoint(event.pos):
-                    self.shop_hover = i
+                    self.shop_hover = item_id
                     break
+            self.shop_back_hover = layout["back"].collidepoint(event.pos)
+            return
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for i, (name, desc, cost, effect) in enumerate(shop_items):
-                btn_rect = layout["buttons"][i]
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # The card artwork itself is the purchase button.
+            for item_id, btn_rect in layout["slots"]:
                 if btn_rect.collidepoint(event.pos):
-                    gold = self.party[0].gold if self.party else 0
-                    if gold >= cost:
-                        for a in self.party:
-                            a.gold -= cost
-                        effect()
-                        self.achievement_manager.record("gold_spent", cost)
-                        self._save_permanent_data()
-                    break
+                    self._buy_shop_item(item_id)
+                    return
 
             if layout["back"].collidepoint(event.pos):
                 self._save_permanent_data()
@@ -2190,7 +2260,7 @@ class Game:
         if not isinstance(potions, dict):
             potions = {}
             self.save_data["potions"] = potions
-        for key in ("health", "defense", "attack"):
+        for key in ("health", "defense", "attack", "revive"):
             try:
                 potions[key] = max(0, int(potions.get(key) or 0))
             except (TypeError, ValueError):
@@ -2198,14 +2268,14 @@ class Game:
         return potions
 
     def _add_potion(self, key, amount=1):
-        if key not in ("health", "defense", "attack"):
+        if key not in ("health", "defense", "attack", "revive"):
             return
         potions = self._potion_inventory()
         potions[key] = max(0, int(potions.get(key, 0)) + amount)
 
     def _use_inventory_potion(self, key):
         """Consume one potion and apply its effect. Returns True on success."""
-        if key not in ("health", "defense", "attack"):
+        if key not in ("health", "defense", "attack", "revive"):
             return False
         if not self.party:
             return False
@@ -2213,7 +2283,15 @@ class Game:
         if potions.get(key, 0) <= 0:
             return False
 
-        if key == "health":
+        if key == "revive":
+            fallen = [a for a in self.party
+                      if not a.is_alive or a.hp <= 0]
+            if not fallen:
+                return False
+            for animal in fallen:
+                animal.hp = max(1, int(animal.max_hp * 0.5))
+                animal.is_alive = True
+        elif key == "health":
             if not any(a.is_alive and a.hp < a.max_hp for a in self.party):
                 return False
             self._heal_party(30)
@@ -2683,68 +2761,82 @@ class Game:
                                  min_font=14, max_lines=2)
 
     def _render_shop(self):
-        self.assets.draw_background(self.screen, "shop")
-
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 140))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.fill((22, 13, 7))
 
         layout = self._shop_layout()
-        panel = layout["panel"]
-        _draw_panel(self.screen, panel, SERTAO_PANEL, PURPLE)
+        image_rect = layout["image"]
+        background = None
+        if self.assets is not None:
+            background = self.assets.get_fitted_image(
+                SHOP_BACKGROUND_FILENAME, image_rect.w, image_rect.h)
 
-        draw_text_centered(self.screen, "Loja do Sertao",
-                           panel.centerx, panel.y + 35, 36, SERTAO_GOLD)
+        if background is not None:
+            shadow = pygame.Surface((image_rect.w + 26, image_rect.h + 26),
+                                    pygame.SRCALPHA)
+            pygame.draw.rect(shadow, (0, 0, 0, 150), shadow.get_rect(),
+                             border_radius=18)
+            self.screen.blit(shadow, (image_rect.x - 13,
+                                      image_rect.y - 13))
+            self.screen.blit(background, image_rect)
+        else:
+            self.assets.draw_background(self.screen, "shop")
 
-        gold = self.party[0].gold if self.party else 0
-        draw_text_centered(self.screen, f"Seu Gold: {gold}",
-                           panel.centerx, panel.y + 75, 22, SERTAO_GOLD)
+        gold = self._shop_gold()
 
-        pygame.draw.line(self.screen, PURPLE,
-                         (panel.x + 40, panel.y + 100),
-                         (panel.x + panel.w - 40, panel.y + 100), 1)
+        # Item cards are drawn directly over the four painted slots and are
+        # themselves the clickable purchase buttons.
+        for item_id, btn_rect in layout["slots"]:
+            item = SHOP_ITEMS[item_id]
+            can_afford = gold >= item["cost"]
+            card = None
+            if self.assets is not None:
+                card = self.assets.get_shop_item_image(
+                    item_id, btn_rect.w, btn_rect.h)
+            if card is not None:
+                card_rect = card.get_rect(center=btn_rect.center)
+                self.screen.blit(card, card_rect)
+                if not can_afford:
+                    shade = pygame.Surface(card_rect.size, pygame.SRCALPHA)
+                    shade.fill((0, 0, 0, 95))
+                    self.screen.blit(shade, card_rect.topleft)
 
-        item_colors = {0: GREEN, 1: BLUE, 2: RED}
-        cost_labels = {0: 20, 1: 25, 2: 25}
-        for i, (name, desc, cost) in enumerate(layout["items"]):
-            btn_rect = layout["buttons"][i]
-            can_afford = gold >= cost
-            is_hovered = (self.shop_hover == i and can_afford)
+            if self.shop_hover == item_id:
+                glow = pygame.Surface(btn_rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(glow, (255, 215, 0, 60), glow.get_rect(),
+                                 border_radius=14)
+                self.screen.blit(glow, btn_rect.topleft)
+                pygame.draw.rect(self.screen, SERTAO_GOLD, btn_rect, 4,
+                                 border_radius=14)
 
-            bg_color = (50, 40, 25) if can_afford else (35, 28, 18)
-            if is_hovered:
-                bg_color = (65, 55, 35)
+        if self.shop_back_hover:
+            pygame.draw.rect(self.screen, SERTAO_GOLD, layout["back"], 3,
+                             border_radius=16)
 
-            border_color = PURPLE if can_afford else GRAY
-            if is_hovered:
-                border_color = SERTAO_GOLD
+        # Gold badge over the top-left area of the artwork.
+        gold_rect = layout["gold"]
+        badge = pygame.Surface(gold_rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(badge, (25, 13, 5, 205), badge.get_rect(),
+                         border_radius=12)
+        pygame.draw.rect(badge, SERTAO_GOLD, badge.get_rect(), 2,
+                         border_radius=12)
+        self.screen.blit(badge, gold_rect.topleft)
+        draw_text_centered_in_rect(
+            self.screen, f"OURO: {gold}", gold_rect,
+            max(16, int(gold_rect.h * 0.36)), SERTAO_GOLD, min_font=13)
 
-            pygame.draw.rect(self.screen, bg_color, btn_rect, border_radius=10)
-            pygame.draw.rect(self.screen, border_color, btn_rect, 2, border_radius=10)
-
-            icon_color = item_colors[i]
-            icon_rect = pygame.Rect(btn_rect.x + 15, btn_rect.centery - 22, 45, 45)
-            pygame.draw.rect(self.screen, icon_color, icon_rect, border_radius=8)
-
-            text_color = SERTAO_CREAM if can_afford else GRAY
-            cost_w = text_size(f"{cost} Gold", 18)[0]
-            content_rect = pygame.Rect(btn_rect.x + 72, btn_rect.y,
-                                       btn_rect.w - 84 - cost_w - 30,
-                                       btn_rect.h)
-            draw_text_block_colored(
-                self.screen,
-                [(name, 20, text_color), (desc, 15,
-                                          SERTAO_CREAM if can_afford else GRAY)],
-                content_rect, line_spacing=2)
-
-            cost_surf = get_font(20).render(f"{cost} Gold", True,
-                                            SERTAO_GOLD if can_afford else GRAY)
-            cost_rect = cost_surf.get_rect(midright=(btn_rect.right - 16,
-                                                     btn_rect.centery))
-            self.screen.blit(cost_surf, cost_rect)
-
-        draw_sertao_button(self.screen, layout["back"], "Voltar",
-                           layout["back"].collidepoint(get_mouse_pos()))
+        # Purchase feedback replaces the shopkeeper's speech parchment.
+        if self.shop_feedback and time.time() < self.shop_feedback_until:
+            feedback_rect = layout["feedback"]
+            panel = pygame.Surface(feedback_rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(panel, (26, 14, 6, 255), panel.get_rect(),
+                             border_radius=12)
+            pygame.draw.rect(panel, SERTAO_GOLD, panel.get_rect(), 2,
+                             border_radius=12)
+            self.screen.blit(panel, feedback_rect.topleft)
+            color = (235, 95, 70) if self.shop_feedback_error else SERTAO_GOLD
+            draw_text_centered_in_rect(
+                self.screen, self.shop_feedback, feedback_rect,
+                max(16, int(feedback_rect.h * 0.13)), color, min_font=12)
 
     def _render_camp(self):
         self.assets.draw_background(self.screen, "camp")
@@ -3079,10 +3171,10 @@ class Game:
         if self.next_biome_pending:
             next_name = self.next_biome_pending.replace('_', ' ').title()
             draw_text_centered(self.screen,
-                               f"Clique para avancar para {next_name}",
+                               f"Enter ou clique para avancar para {next_name}",
                                panel.centerx, panel.bottom - 40, 20, SERTAO_GOLD)
         else:
-            draw_text_centered(self.screen, "Clique para voltar ao mapa",
+            draw_text_centered(self.screen, "Enter ou clique para voltar ao mapa",
                                panel.centerx, panel.bottom - 40, 20, SERTAO_CREAM)
 
     def _render_pause(self):

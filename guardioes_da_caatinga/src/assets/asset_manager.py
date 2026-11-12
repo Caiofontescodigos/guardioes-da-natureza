@@ -31,6 +31,14 @@ UI_BUTTON_MAP = {
     "missoes": "Missoes.png",
 }
 
+# Item artwork used as the clickable buttons in the shop.
+SHOP_ITEM_IMAGES = {
+    "cruz_dourada": "CruzDourada.png",
+    "attack": "PocaodeAtaque.png",
+    "defense": "PocaodeDefesa.png",
+    "health": "PocaodeCura.png",
+}
+
 MAIN_MENU_BUTTON_MAP = {
     "play": "MenuJogar.png",
     "how_to_play": "MenuSobre.png",
@@ -65,7 +73,7 @@ BACKGROUND_MAP = {
     "map": "Mapadajornada.png",
     "combat": "Cenariodeluta.jpeg",
     "event": "Momento de escolha.jpeg",
-    "shop": "MercadoseuZé.jpeg",
+    "shop": "ArmazemdoSeuZe.jpeg",
     "camp": "Momento de escolha.jpeg",
     "level_up": "Momento de escolha.jpeg",
     "rescue": "Momento de escolha.jpeg",
@@ -307,6 +315,14 @@ class AssetManager:
         panel = pygame.transform.smoothscale(panel, (target_width, target_height))
         self._surfaces_cache[cache_key] = panel
         return panel
+
+    def get_shop_item_image(self, item_id, max_width, max_height):
+        """Return a shop item card fitted inside the available slot."""
+        filename = SHOP_ITEM_IMAGES.get(item_id)
+        if filename is None:
+            print(f"[AssetManager] Carta de loja nao mapeada: '{item_id}'")
+            return None
+        return self.get_fitted_image(filename, max_width, max_height)
 
     def get_fitted_image(self, filename, max_width, max_height):
         """Load an image and fit it inside a box, preserving its aspect ratio."""

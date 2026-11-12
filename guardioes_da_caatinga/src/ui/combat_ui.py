@@ -51,6 +51,16 @@ class CombatUI:
         self.step_timer = 0
         self.finished = False
 
+    def skip_to_end(self):
+        """Resolve every remaining turn and jump straight to the result."""
+        if self.finished or self.combat.combat_ended:
+            return False
+        self.combat.resolve_to_end()
+        self.floating_texts = []
+        self.step_timer = 0
+        self.finished = self.combat.combat_ended
+        return True
+
     def update(self):
         self.floating_texts = [ft for ft in self.floating_texts if ft.update()]
 
@@ -269,8 +279,8 @@ class CombatUI:
     def _draw_controls(self, surface):
         ctrl_y = SCREEN_HEIGHT - 22
         if self.combat.combat_ended:
-            draw_text(surface, "Clique para continuar", (SCREEN_WIDTH // 2, ctrl_y),
+            draw_text(surface, "Enter ou clique para continuar", (SCREEN_WIDTH // 2, ctrl_y),
                       font_size=20, color=YELLOW, center=True)
         else:
-            draw_text(surface, "Combate Automatico - Aguarde a batalha",
+            draw_text(surface, "Combate Automatico - ENTER para pular a batalha",
                       (SCREEN_WIDTH // 2, ctrl_y), font_size=18, color=GRAY, center=True)

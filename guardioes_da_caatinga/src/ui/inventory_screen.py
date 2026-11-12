@@ -43,9 +43,9 @@ class InventoryScreen:
     def _build_potion_buttons(self):
         panel = pygame.Rect(665, 420, 560, 215)
         rects = {}
-        for index, key in enumerate(("health", "defense", "attack")):
-            y = panel.y + 50 + index * 28
-            rects[key] = pygame.Rect(panel.right - 100, y, 80, 24)
+        for index, key in enumerate(("health", "defense", "attack", "revive")):
+            y = panel.y + 46 + index * 24
+            rects[key] = pygame.Rect(panel.right - 100, y, 80, 22)
         return rects
 
     def set_feedback(self, message, error=False):
@@ -78,7 +78,10 @@ class InventoryScreen:
                         return ("use_potion", key)
                     counts = self._potion_counts()
                     if counts.get(key, 0) <= 0:
-                        self.set_feedback("Sem pocao disponivel.", error=True)
+                        self.set_feedback("Sem item disponivel.", error=True)
+                    elif key == "revive":
+                        self.set_feedback(
+                            "Nenhum animal caido para reanimar.", error=True)
                     else:
                         self.set_feedback("Vida ja esta cheia.", error=True)
                     return None
@@ -174,6 +177,11 @@ class InventoryScreen:
         draw_text(surface, stats, (text_x, card.y + 96),
                   font_size=17, color=SERTAO_CREAM)
 
+        if not animal.is_alive or animal.hp <= 0:
+            draw_text_right(surface, "CAIDO",
+                            (card.right - 14, card.y + 16),
+                            font_size=18, color=RED)
+
     def _draw_upgrades_panel(self, surface):
         panel = pygame.Rect(665, 105, 560, 300)
         draw_sertao_panel(surface, panel.x, panel.y, panel.w, panel.h)
@@ -233,31 +241,33 @@ class InventoryScreen:
 
         counts = self._potion_counts()
         labels = {
-            "health": "Pocao de Vida",
+            "health": "Pocao de Cura",
             "defense": "Pocao de Defesa",
             "attack": "Pocao de Ataque",
+            "revive": "Cruz Dourada",
         }
         effects = {
             "health": "cura 30 HP",
-            "defense": "+5 DEF / 3 batalhas",
-            "attack": "+3 ATK / 3 batalhas",
+            "defense": "+5 DEF / 3 turnos",
+            "attack": "+3 ATK / 3 turnos",
+            "revive": "reanima os caidos",
         }
         x = panel.x + 20
-        for index, key in enumerate(("health", "defense", "attack")):
-            y = panel.y + 50 + index * 28
+        for index, key in enumerate(("health", "defense", "attack", "revive")):
+            y = panel.y + 46 + index * 24
             qty = counts.get(key, 0)
             enabled = self._can_use_potion(key)
             label_color = SERTAO_CREAM if qty > 0 else GRAY
             draw_text(surface, "{}  x{}".format(labels[key], qty),
-                      (x, y + 3), font_size=16, color=label_color)
-            draw_text(surface, effects[key], (x + 180, y + 6),
-                      font_size=12, color=SERTAO_LIGHT)
+                      (x, y + 2), font_size=15, color=label_color)
+            draw_text(surface, effects[key], (x + 175, y + 4),
+                      font_size=11, color=SERTAO_LIGHT)
             draw_sertao_button(
                 surface, self.potion_buttons[key], "Usar",
                 is_hovered=(self.hover_potion == key and enabled),
-                enabled=enabled, font_size=14)
+                enabled=enabled, font_size=13)
 
-        y = panel.y + 140
+        y = panel.y + 148
         owned = self._owned_relics()
         if owned:
             draw_text(surface, "Reliquias:", (x, y), font_size=16,
@@ -282,10 +292,12 @@ class InventoryScreen:
             return False
         if key == "health":
             return any(a.is_alive and a.hp < a.max_hp for a in self.party)
+        if key == "revive":
+            return any(not a.is_alive or a.hp <= 0 for a in self.party)
         return True
 
     def _potion_counts(self):
-        counts = {"health": 0, "defense": 0, "attack": 0}
+        counts = {"health": 0, "defense": 0, "attack": 0, "revive": 0}
         potions = self.save_data.get("potions")
         if isinstance(potions, dict):
             for key in counts:
@@ -307,6 +319,9 @@ class InventoryScreen:
             counts["attack"] = int(
                 inv.get("attack_potion") or inv.get("attack")
                 or inv.get("pocao_ataque") or inv.get("strength_potion") or 0)
+            counts["revive"] = int(
+                inv.get("revive") or inv.get("cruz_dourada")
+                or inv.get("revive_potion") or 0)
         elif isinstance(inv, list):
             for item in inv:
                 if not isinstance(item, dict):
@@ -320,6 +335,8 @@ class InventoryScreen:
                     counts["defense"] += qty
                 elif "ataque" in item_id or "attack" in item_id:
                     counts["attack"] += qty
+                elif "revive" in item_id or "cruz" in item_id:
+                    counts["revive"] += qty
         return counts
 
     def _owned_relics(self):

@@ -334,6 +334,13 @@ class AnimalSelectScreen:
                 self.SPRITE_CENTER_Y - self.SPRITE_BOX // 2,
                 self.SPRITE_BOX, self.SPRITE_BOX)
             info = animal_data.get(aid, {}) or {}
+            saved_hp = info.get("hp")
+            saved_alive = info.get("is_alive")
+            if isinstance(saved_alive, bool):
+                fallen = (not saved_alive) or (
+                    isinstance(saved_hp, (int, float)) and saved_hp <= 0)
+            else:
+                fallen = isinstance(saved_hp, (int, float)) and saved_hp <= 0
             card = {
                 "id": aid,
                 "animal": animal,
@@ -342,6 +349,7 @@ class AnimalSelectScreen:
                 "unlocked": aid in self.unlocked_animals,
                 "level": info.get("level", 1) or 1,
                 "evolution_stage": info.get("evolution_stage", 0) or 0,
+                "fallen": fallen,
             }
             self.cards.append(card)
             self.card_by_id[aid] = card
@@ -472,6 +480,18 @@ class AnimalSelectScreen:
                       font_size=self._source_size(56),
                       color=SERTAO_CREAM, center=True)
 
+        if card["unlocked"] and card.get("fallen"):
+            shade = pygame.Surface(sprite_rect.size, pygame.SRCALPHA)
+            shade.fill((20, 10, 8, 130))
+            surface.blit(shade, sprite_rect.topleft)
+            tag = pygame.Rect(0, 0, self._source_size(96),
+                              self._source_size(26))
+            tag.midbottom = (sprite_rect.centerx, sprite_rect.bottom - 6)
+            pygame.draw.rect(surface, SERTAO_RED, tag, border_radius=6)
+            draw_text(surface, "CAIDO", tag.center,
+                      font_size=self._source_size(15),
+                      color=SERTAO_CREAM, center=True)
+
         if card["unlocked"] and selected:
             pygame.draw.rect(surface, SERTAO_GOLD, sprite_rect, 3,
                              border_radius=10)
@@ -519,6 +539,12 @@ class AnimalSelectScreen:
                 name, max_width, self._source_size(19))
             draw_text(surface, name, name_pos, font_size=font_size,
                       color=SERTAO_GOLD, center=True)
+            if card.get("fallen"):
+                fall_pos = self._source_point(
+                    self.TEAM_SLOT_CENTERS[index][0], 842)
+                draw_text(surface, "CAIDO", fall_pos,
+                          font_size=self._source_size(14),
+                          color=SERTAO_RED, center=True)
 
     def _draw_hotspot(self, surface, rect, hovered, enabled=True):
         if not hovered:

@@ -32,8 +32,8 @@ class HowToPlayScreen:
          "Ao atingir o nivel 6 o animal evolui para a Evolucao 1. O "
          "progresso permanente fica no save; a run atual pode ser perdida."),
         ("CONTROLES",
-         "Mouse: selecionar botoes e pontos. ESC: pausar durante a run. "
-         "F11: alternar entre janela e tela cheia."),
+         "Mouse: selecionar botoes e pontos. ENTER: pular a batalha para o "
+         "final. ESC: pausar durante a run. F11: tela cheia."),
         ("DICAS",
          "Equilibre as funcoes da equipe, explore eventos e volte ao "
          "Acampamento antes de enfrentar elites e chefes."),
