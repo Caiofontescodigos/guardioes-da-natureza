@@ -504,6 +504,11 @@ class Game:
         self.victory_gold_gained = 0
         self.node_xp_bonus = 0
         self.node_gold_bonus = 1
+        self.event_hover = -1
+        self.shop_hover = -1
+        self.level_up_hover = -1
+        self.encounter_hover = -1
+        self.encounter_swap_hover = -1
         self.inventory_screen = None
         self._overlay_return_state = None
 
@@ -717,6 +722,25 @@ class Game:
         except Exception:
             pass
 
+    def _party_defeated(self):
+        """Return True only when no party member can still fight.
+
+        Both flags are checked because some older flows only zeroed ``hp``
+        without updating ``is_alive``.  An empty party is not treated as a
+        defeat (the team-selection flow always provides at least one animal).
+        """
+        if not self.party:
+            return False
+        return not any(animal.is_alive and animal.hp > 0
+                       for animal in self.party)
+
+    def _recover_party_after_defeat(self):
+        """Apply the project's existing recovery rule to downed animals."""
+        for animal in self.party:
+            if not animal.is_alive or animal.hp <= 0:
+                animal.hp = max(1, animal.max_hp // 4)
+                animal.is_alive = True
+
     def _defeat_run(self):
         """Show the Game Over screen once the whole party has been defeated.
 
@@ -727,8 +751,9 @@ class Game:
         player then chooses between retrying (fresh run at the first map) or
         returning to the save's internal menu.
         """
-        # Defensive guard: a defeat must never stack screens or restart twice.
-        if self.state == GameState.GAME_OVER:
+        # Defensive guards: never show the result for a partial loss, and
+        # never stack screens or restart twice for the same defeat.
+        if self.state == GameState.GAME_OVER or not self._party_defeated():
             return
 
         # Account for the current attempt's play time before resetting the
@@ -739,6 +764,23 @@ class Game:
                 + (time.time() - self._run_start_time))
         self._run_start_time = 0
 
+        # Remember where the run ended before the journey runtime is dropped,
+        # so the result screen can use that region's background.
+        defeated_biome = self.current_biome or "caatinga"
+        defeated_in_boss_phase = False
+        if self.map_generator is not None:
+            # A boss node is marked as visited before its combat starts, so
+            # the last visited node is the reliable signal while fighting it.
+            try:
+                defeated_in_boss_phase = bool(self._was_boss_node())
+            except Exception:
+                defeated_in_boss_phase = False
+        if not defeated_in_boss_phase and self.map_ui is not None:
+            try:
+                defeated_in_boss_phase = bool(self.map_ui._is_boss_phase())
+            except Exception:
+                defeated_in_boss_phase = False
+
         # Drop the battle/event/map that caused the defeat.
         self._clear_journey_runtime()
 
@@ -746,10 +788,7 @@ class Game:
 
         # Existing recovery rule: defeated animals come back alive with a
         # quarter of their maximum HP.
-        for animal in self.party:
-            if not animal.is_alive or animal.hp <= 0:
-                animal.hp = max(1, animal.max_hp // 4)
-                animal.is_alive = True
+        self._recover_party_after_defeat()
 
         # The attempt is over: persist permanent progress and clear only the
         # temporary run.  The slot itself is never deleted.
@@ -768,7 +807,9 @@ class Game:
         # team shown match the stored state.
         from src.ui.game_over_screen import GameOverScreen
         self.game_over_screen = GameOverScreen(
-            self.assets, self.save_data or {}, self.party)
+            self.assets, self.save_data or {}, self.party,
+            biome_id=defeated_biome,
+            boss_phase=defeated_in_boss_phase)
         self.map_ui = None
         self.state = GameState.GAME_OVER
 
@@ -778,11 +819,7 @@ class Game:
             return
         self.game_over_screen = None
         self._clear_journey_runtime()
-
-        for animal in self.party:
-            if not animal.is_alive or animal.hp <= 0:
-                animal.hp = max(1, animal.max_hp // 4)
-                animal.is_alive = True
+        self._recover_party_after_defeat()
 
         biomes = (self.save_data or {}).get(
             "unlocked_biomes", ["caatinga"]) or ["caatinga"]
@@ -802,11 +839,7 @@ class Game:
             return
         self.game_over_screen = None
         self._clear_journey_runtime()
-
-        for animal in self.party:
-            if not animal.is_alive or animal.hp <= 0:
-                animal.hp = max(1, animal.max_hp // 4)
-                animal.is_alive = True
+        self._recover_party_after_defeat()
 
         if self.save_data is not None:
             self.save_data["run"] = None
@@ -2031,8 +2064,8 @@ class Game:
                 animal.hp -= choice["hp_cost"]
                 if animal.hp <= 0:
                     animal.hp = 0
-            alive = [a for a in self.party if a.is_alive]
-            if not alive:
+                    animal.is_alive = False
+            if self._party_defeated():
                 self._defeat_run()
                 return
 
@@ -2074,8 +2107,8 @@ class Game:
                     animal.hp -= choice.get("hp_loss_amount", 5)
                     if animal.hp <= 0:
                         animal.hp = 0
-                alive = [a for a in self.party if a.is_alive]
-                if not alive:
+                        animal.is_alive = False
+                if self._party_defeated():
                     self._defeat_run()
                     return
 
@@ -2986,7 +3019,8 @@ class Game:
         if self.game_over_screen is None:
             from src.ui.game_over_screen import GameOverScreen
             self.game_over_screen = GameOverScreen(
-                self.assets, self.save_data or {}, self.party)
+                self.assets, self.save_data or {}, self.party,
+                biome_id=self.current_biome or "caatinga")
         self.game_over_screen.draw(self.screen)
 
     def _render_victory(self):

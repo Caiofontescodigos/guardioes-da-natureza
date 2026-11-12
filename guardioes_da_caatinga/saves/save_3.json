@@ -2,52 +2,85 @@
     "version": "3.2",
     "unlocked_animals": [
         "tatu_bola",
-        "onca_pintada"
+        "onca_pintada",
+        "lobo_guara",
+        "arara_azul"
     ],
     "unlocked_biomes": [
-        "caatinga"
+        "caatinga",
+        "cerrado"
     ],
     "permanent_upgrades": {
         "tatu_bola": [
             "sangue_quente",
-            "golpe_critico"
+            "golpe_critico",
+            "couraca",
+            "pele_resistente",
+            "recuperacao_natural",
+            "velocidade_raio"
         ],
         "onca_pintada": [
+            "vida_selvagem",
+            "golpe_critico",
+            "instinto_selvagem"
+        ],
+        "arara_azul": [
+            "velocidade_raio",
             "vida_selvagem"
         ]
     },
     "animal_data": {
         "tatu_bola": {
-            "level": 3,
-            "xp": 79,
-            "xp_to_level": 112,
-            "base_attack": 11,
-            "base_defense": 17,
-            "base_speed": 7,
+            "level": 8,
+            "xp": 398,
+            "xp_to_level": 850,
+            "base_attack": 18,
+            "base_defense": 40,
+            "base_speed": 17,
             "base_crit_chance": 5,
             "base_dodge": 5,
-            "max_hp": 86,
-            "hp": 21,
+            "max_hp": 126,
+            "hp": 31,
+            "regen_per_turn": 2,
+            "cooldown_reduction": 0,
+            "damage_reduction": 5,
+            "execute_bonus": 3,
+            "crit_damage_boost": 50,
+            "evolution_stage": 1,
+            "specific_upgrade_id": "carapaca_reforcada",
+            "gold": 886
+        },
+        "onca_pintada": {
+            "level": 7,
+            "xp": 92,
+            "xp_to_level": 567,
+            "base_attack": 47,
+            "base_defense": 14,
+            "base_speed": 19,
+            "base_crit_chance": 21,
+            "base_dodge": 10,
+            "max_hp": 97,
+            "hp": 24,
             "regen_per_turn": 0,
             "cooldown_reduction": 0,
             "damage_reduction": 0,
             "execute_bonus": 3,
-            "crit_damage_boost": 50,
-            "evolution_stage": 0,
-            "specific_upgrade_id": null,
-            "gold": 47
+            "crit_damage_boost": 75,
+            "evolution_stage": 1,
+            "specific_upgrade_id": "instinto_predador",
+            "gold": 545
         },
-        "onca_pintada": {
-            "level": 3,
-            "xp": 3,
-            "xp_to_level": 112,
-            "base_attack": 23,
-            "base_defense": 7,
-            "base_speed": 13,
-            "base_crit_chance": 17,
-            "base_dodge": 10,
-            "max_hp": 72,
-            "hp": 18,
+        "lobo_guara": {
+            "level": 1,
+            "xp": 0,
+            "xp_to_level": 50,
+            "base_attack": 14,
+            "base_defense": 6,
+            "base_speed": 12,
+            "base_crit_chance": 20,
+            "base_dodge": 15,
+            "max_hp": 55,
+            "hp": 55,
             "regen_per_turn": 0,
             "cooldown_reduction": 0,
             "damage_reduction": 0,
@@ -55,29 +88,54 @@
             "crit_damage_boost": 0,
             "evolution_stage": 0,
             "specific_upgrade_id": null,
-            "gold": 38
+            "gold": 0
+        },
+        "arara_azul": {
+            "level": 3,
+            "xp": 79,
+            "xp_to_level": 112,
+            "base_attack": 15,
+            "base_defense": 5,
+            "base_speed": 15,
+            "base_crit_chance": 10,
+            "base_dodge": 12,
+            "max_hp": 62,
+            "hp": 15,
+            "regen_per_turn": 0,
+            "cooldown_reduction": 0,
+            "damage_reduction": 0,
+            "execute_bonus": 0,
+            "crit_damage_boost": 0,
+            "evolution_stage": 0,
+            "specific_upgrade_id": null,
+            "gold": 124
         }
     },
     "active_party": [
+        "onca_pintada",
         "tatu_bola",
-        "onca_pintada"
+        "arara_azul"
     ],
     "bestiary_discovered": [
         "tatu_bola",
-        "onca_pintada"
+        "onca_pintada",
+        "lobo_guara",
+        "arara_azul"
     ],
     "creatures_discovered": [
         "brasa",
-        "chamas"
+        "chamas",
+        "lobo_alfa_de_fogo",
+        "espirito_de_fogo"
     ],
     "statistics": {
-        "combats_won": 6,
-        "combats_lost": 1,
-        "enemies_defeated": 11,
-        "gold_earned": 107,
-        "levels_gained": 3,
+        "combats_won": 37,
+        "combats_lost": 4,
+        "enemies_defeated": 67,
+        "gold_earned": 971,
+        "levels_gained": 14,
         "animals_rescued": 1,
-        "bosses_defeated": 0
+        "bosses_defeated": 1
     },
     "settings": {
         "music_volume": 0.7,
@@ -95,11 +153,11 @@
     },
     "run": null,
     "run_active": false,
-    "play_time": 275.2731101512909,
-    "last_save_time": 1793966154.2835987,
+    "play_time": 539.8352525234222,
+    "last_save_time": 1793993592.7925045,
     "potions": {
         "health": 0,
         "defense": 0,
-        "attack": 0
+        "attack": 1
     }
 }

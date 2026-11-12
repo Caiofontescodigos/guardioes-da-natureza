@@ -27,10 +27,18 @@ Dependências: `pygame>=2.5.0` (ver `requirements.txt`).
    salva o progresso, desvincula o save ativo e volta à seleção de slots sem
    apagar dados e sem fechar o jogo. O **SAIR** do menu principal continua
    encerrando o aplicativo.
-8. Se toda a equipe for derrotada, a tentativa atual termina: a equipe é
-   recuperada (25% do HP máximo, mínimo 1) e uma nova jornada começa no
-   primeiro mapa, preservando animais desbloqueados, bestiário, ouro,
-   estatísticas, configurações e demais dados permanentes do save.
+8. Se toda a equipe for derrotada, a tentativa atual termina e a tela de
+   **GAME OVER** usa a arte original `TelaGameOver.png` em um painel menor,
+   sobre o fundo da região (bioma ou fase do chefe) onde a equipe caiu. A
+   equipe é recuperada (25% do HP máximo, mínimo 1) e o jogador escolhe entre:
+   - **TENTAR NOVAMENTE** (`Enter`/`Espaço` ou clique): inicia uma nova
+     tentativa desde o primeiro mapa (Caatinga);
+   - **VOLTAR AO MENU** (`Esc` ou clique): retorna ao menu interno do save
+     ativo.
+   Em ambos os casos o save atual é preservado (animais desbloqueados,
+   bestiário, ouro, estatísticas, configurações e demais dados permanentes) e
+   apenas o estado temporário da tentativa (mapa, batalha e eventos) é
+   descartado. Nenhum slot é apagado ou criado.
 
 O slot ativo é mantido pelo `SaveManager`; todas as telas da partida
 (Bestiário, Conquistas, equipe, ouro, estatísticas e jornada) usam os
@@ -43,6 +51,9 @@ são mais expostos pelo menu da partida.
 - **Batalhas automáticas** por turnos com sistema de turnos por velocidade:
   crítico, esquiva, buffs e debuffs, sangramento, veneno, escudo, contra-ataque
   e regeneração.
+- **Tela de Game Over** em painel compacto sobre o fundo da região onde a
+  equipe foi derrotada, com estatísticas do save, equipe, tentativa rápida no
+  primeiro mapa e retorno ao menu do save.
 - **6 animais jogáveis**, cada um com uma função de equipe:
   - Tatu-bola (Tanque), Lobo-guará (Assassino), Arara-azul (Ataque a Distância),
     Tamanduá-bandeira (Controle), Capivara (Suporte) e Onça-pintada (DPS).

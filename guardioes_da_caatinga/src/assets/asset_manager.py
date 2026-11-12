@@ -70,7 +70,7 @@ BACKGROUND_MAP = {
     "level_up": "Momento de escolha.jpeg",
     "rescue": "Momento de escolha.jpeg",
     "cage_reward": "Momento de escolha.jpeg",
-    "game_over": "TelaGameOver.jpeg",
+    "game_over": "TelaGameOver.png",
 }
 
 # Locked-animal placeholder supplied with the team-selection artwork.
