@@ -7,6 +7,8 @@ from src.save.save_manager import SaveManager
 from src.save.achievement_manager import AchievementManager
 from src.audio.sfx import SfxManager
 from src.state import GameState, NodeType
+from src.consumables import (ITEM_NAMES, POTION_KEYS, apply_effect, can_target,
+                             clamp_count, get_limit, invalid_target_reason)
 from src.ui.map_ui import MapUI
 from src.ui.combat_ui import CombatUI
 from src.assets.asset_manager import AssetManager
@@ -1197,21 +1199,23 @@ class Game:
                 self._close_overlay_screen()
             elif isinstance(result, tuple) and result and result[0] == "use_potion":
                 key = result[1]
-                used = self._use_inventory_potion(key)
+                animal_id = result[2] if len(result) > 2 else None
+                target = next((a for a in self.party
+                               if a.animal_id == animal_id), None)
+                used = self._use_inventory_potion(key, animal_id)
                 if self.inventory_screen:
                     self.inventory_screen.save_data = self.save_data or {}
                     if used:
-                        labels = {
-                            "health": "Pocao de Cura usada!",
-                            "defense": "Pocao de Defesa usada!",
-                            "attack": "Pocao de Ataque usada!",
-                            "revive": "Cruz Dourada usada! Caidos reanimados.",
-                        }
-                        self.inventory_screen.set_feedback(
-                            labels.get(key, "Pocao usada!"))
+                        item_name = ITEM_NAMES.get(key, "Item")
+                        if target is not None:
+                            message = "{} usada em {}!".format(
+                                item_name, target.name)
+                        else:
+                            message = "{} usada!".format(item_name)
+                        self.inventory_screen.set_feedback(message)
                     else:
                         self.inventory_screen.set_feedback(
-                            "Nao foi possivel usar.", error=True)
+                            invalid_target_reason(key), error=True)
 
         elif self.state == GameState.HOW_TO_PLAY:
             if self.how_to_play_screen:
@@ -2095,6 +2099,34 @@ class Game:
 
     def apply_event_choice(self, choice):
         self.achievement_manager.record("events_resolved", 1)
+
+        # Purchases made during events must use the same inventory and the
+        # same stack limits as the shop. Handle them before the generic
+        # reward fields so the text "comprar pocao" cannot heal the party for
+        # free or bypass the inventory cap.
+        if choice.get("effect") == "buy_health_potion":
+            key = "health"
+            limit = get_limit(key)
+            current = self._potion_inventory().get(key, 0)
+            cost = int(choice.get("gold_cost") or 0)
+            if current >= limit:
+                self._notify_item(
+                    "Inventario de pocoes cheio ({}/{}).".format(
+                        current, limit), success=False)
+                return
+            if self._shop_gold() < cost:
+                self._notify_item("Ouro insuficiente!", success=False)
+                return
+            self._spend_gold(cost)
+            self._add_potion(key)
+            self.achievement_manager.record("gold_spent", cost)
+            self._save_permanent_data()
+            self._notify_item("Comprado: {} ({}/{}).".format(
+                ITEM_NAMES[key], self._potion_inventory().get(key, 0), limit))
+            self.state = GameState.MAP
+            self.map_ui = None
+            return
+
         if "hp_cost" in choice and choice["hp_cost"] > 0:
             for animal in self.party:
                 animal.hp -= choice["hp_cost"]
@@ -2199,22 +2231,41 @@ class Game:
         self.shop_feedback_error = error
         self.shop_feedback_until = time.time() + 2.0
 
+    def _spend_gold(self, amount):
+        """Spend gold using the same convention as the rest of the game."""
+        amount = max(0, int(amount))
+        for animal in self.party:
+            animal.gold = max(0, animal.gold - amount)
+
+    def _notify_item(self, message, success=True):
+        self.save_status_message = message
+        self.save_status_success = bool(success)
+        self.save_status_timer = self.save_status_duration
+
     def _buy_shop_item(self, item_id):
         item = SHOP_ITEMS.get(item_id)
         if not item:
             return
         cost = int(item["cost"])
+        potion_key = "revive" if item_id == "cruz_dourada" else item_id
+        limit = get_limit(potion_key)
+        current = self._potion_inventory().get(potion_key, 0)
+        if current >= limit:
+            self._set_shop_feedback(
+                "Inventario cheio: {}/{}.".format(current, limit), error=True)
+            return
         if self._shop_gold() < cost:
             self._set_shop_feedback("Ouro insuficiente!", error=True)
             return
 
-        for animal in self.party:
-            animal.gold = max(0, animal.gold - cost)
-        potion_key = "revive" if item_id == "cruz_dourada" else item_id
+        self._spend_gold(cost)
         self._add_potion(potion_key)
         self.achievement_manager.record("gold_spent", cost)
         self._save_permanent_data()
-        self._set_shop_feedback(f"Comprado: {item['name']}!")
+        self._set_shop_feedback(
+            "Comprado: {} ({}/{}).".format(item['name'],
+                                           self._potion_inventory().get(potion_key, 0),
+                                           limit))
 
     def handle_shop_events(self, event):
         layout = self._shop_layout()
@@ -2240,18 +2291,6 @@ class Game:
                 self.state = GameState.MAP
                 self.map_ui = None
 
-    def _heal_party(self, amount):
-        for animal in self.party:
-            if animal.is_alive:
-                animal.heal(amount)
-
-    def _apply_party_buff(self, stat, amount, duration):
-        from src.state import BuffType
-        buff_type = BuffType.ATTACK_UP if stat == "attack" else BuffType.DEFENSE_UP
-        for animal in self.party:
-            if animal.is_alive:
-                animal.apply_buff(buff_type, amount, duration)
-
     def _potion_inventory(self):
         """Return the mutable potion inventory, creating it when missing."""
         if not isinstance(self.save_data, dict):
@@ -2260,47 +2299,58 @@ class Game:
         if not isinstance(potions, dict):
             potions = {}
             self.save_data["potions"] = potions
-        for key in ("health", "defense", "attack", "revive"):
-            try:
-                potions[key] = max(0, int(potions.get(key) or 0))
-            except (TypeError, ValueError):
-                potions[key] = 0
+        for key in POTION_KEYS:
+            potions[key] = clamp_count(key, potions.get(key) or 0)
         return potions
 
     def _add_potion(self, key, amount=1):
-        if key not in ("health", "defense", "attack", "revive"):
-            return
+        """Add up to the item limit and return how many were added."""
+        if key not in POTION_KEYS:
+            return 0
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return 0
+        if amount <= 0:
+            return 0
         potions = self._potion_inventory()
-        potions[key] = max(0, int(potions.get(key, 0)) + amount)
+        current = int(potions.get(key, 0))
+        limit = get_limit(key)
+        added = max(0, min(amount, limit - current))
+        potions[key] = current + added
+        return added
 
-    def _use_inventory_potion(self, key):
-        """Consume one potion and apply its effect. Returns True on success."""
-        if key not in ("health", "defense", "attack", "revive"):
+    def _use_inventory_potion(self, key, animal_id=None):
+        """Consume one item and apply it to a single selected animal.
+
+        ``animal_id`` may be an animal id or an Animal instance. The use is
+        refused when the target is missing or not eligible for the effect.
+        Returns True only after the effect was applied and the item consumed.
+        """
+        if key not in POTION_KEYS:
             return False
         if not self.party:
             return False
+
+        target = None
+        if isinstance(animal_id, str):
+            target = next((a for a in self.party
+                           if a.animal_id == animal_id), None)
+        elif animal_id is not None:
+            target = next((a for a in self.party
+                           if a is animal_id
+                           or a.animal_id == getattr(animal_id, "animal_id", None)),
+                          None)
+
         potions = self._potion_inventory()
         if potions.get(key, 0) <= 0:
             return False
+        if target is None or not can_target(key, target):
+            return False
+        if not apply_effect(key, target):
+            return False
 
-        if key == "revive":
-            fallen = [a for a in self.party
-                      if not a.is_alive or a.hp <= 0]
-            if not fallen:
-                return False
-            for animal in fallen:
-                animal.hp = max(1, int(animal.max_hp * 0.5))
-                animal.is_alive = True
-        elif key == "health":
-            if not any(a.is_alive and a.hp < a.max_hp for a in self.party):
-                return False
-            self._heal_party(30)
-        elif key == "defense":
-            self._apply_party_buff("defense", 5, 3)
-        else:
-            self._apply_party_buff("attack", 3, 3)
-
-        potions[key] -= 1
+        potions[key] = max(0, potions[key] - 1)
         self._save_permanent_data()
         return True
 
@@ -2787,6 +2837,10 @@ class Game:
         # themselves the clickable purchase buttons.
         for item_id, btn_rect in layout["slots"]:
             item = SHOP_ITEMS[item_id]
+            potion_key = "revive" if item_id == "cruz_dourada" else item_id
+            limit = get_limit(potion_key)
+            quantity = self._potion_inventory().get(potion_key, 0)
+            is_full = quantity >= limit
             can_afford = gold >= item["cost"]
             card = None
             if self.assets is not None:
@@ -2795,10 +2849,24 @@ class Game:
             if card is not None:
                 card_rect = card.get_rect(center=btn_rect.center)
                 self.screen.blit(card, card_rect)
-                if not can_afford:
+                if not can_afford or is_full:
                     shade = pygame.Surface(card_rect.size, pygame.SRCALPHA)
                     shade.fill((0, 0, 0, 95))
                     self.screen.blit(shade, card_rect.topleft)
+
+            # Quantity/limit badge so the shop also reflects the inventory.
+            count_text = "{}/{}".format(quantity, limit)
+            count_rect = pygame.Rect(btn_rect.x, btn_rect.bottom - 26,
+                                     btn_rect.w, 24)
+            badge = pygame.Surface(count_rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(badge, (25, 13, 5, 215), badge.get_rect(),
+                             border_radius=8)
+            pygame.draw.rect(badge, SERTAO_GOLD if not is_full else RED,
+                             badge.get_rect(), 2, border_radius=8)
+            self.screen.blit(badge, count_rect.topleft)
+            draw_text_centered_in_rect(
+                self.screen, count_text, count_rect, 15,
+                SERTAO_GOLD if not is_full else RED, min_font=11)
 
             if self.shop_hover == item_id:
                 glow = pygame.Surface(btn_rect.size, pygame.SRCALPHA)

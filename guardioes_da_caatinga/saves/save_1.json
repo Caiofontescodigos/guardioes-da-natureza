@@ -60,7 +60,7 @@
     "animal_data": {
         "tatu_bola": {
             "level": 16,
-            "xp": 15296,
+            "xp": 20420,
             "xp_to_level": 21777,
             "base_attack": 23,
             "base_defense": 74,
@@ -68,7 +68,7 @@
             "base_crit_chance": 15,
             "base_dodge": 21,
             "max_hp": 157,
-            "hp": 156,
+            "hp": 157,
             "is_alive": true,
             "regen_per_turn": 4,
             "cooldown_reduction": 0,
@@ -77,7 +77,7 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "carapaca_reforcada",
-            "gold": 7782
+            "gold": 4859
         },
         "arara_azul": {
             "level": 9,
@@ -121,7 +121,7 @@
         },
         "onca_pintada": {
             "level": 16,
-            "xp": 7033,
+            "xp": 11236,
             "xp_to_level": 21777,
             "base_attack": 72,
             "base_defense": 26,
@@ -138,7 +138,7 @@
             "crit_damage_boost": 150,
             "evolution_stage": 1,
             "specific_upgrade_id": "instinto_predador",
-            "gold": 5061
+            "gold": 1706
         },
         "capivara": {
             "level": 9,
@@ -162,7 +162,7 @@
         },
         "tamandua_bandeira": {
             "level": 16,
-            "xp": 9994,
+            "xp": 14888,
             "xp_to_level": 21777,
             "base_attack": 49,
             "base_defense": 41,
@@ -179,7 +179,7 @@
             "crit_damage_boost": 50,
             "evolution_stage": 1,
             "specific_upgrade_id": "defesa_natural",
-            "gold": 6085
+            "gold": 3032
         }
     },
     "active_party": [
@@ -205,13 +205,13 @@
         "lobo_de_fogo"
     ],
     "statistics": {
-        "combats_won": 585,
-        "combats_lost": 28,
-        "enemies_defeated": 1088,
-        "gold_earned": 29321,
+        "combats_won": 635,
+        "combats_lost": 29,
+        "enemies_defeated": 1180,
+        "gold_earned": 31773,
         "levels_gained": 47,
         "animals_rescued": 1,
-        "bosses_defeated": 64
+        "bosses_defeated": 69
     },
     "settings": {
         "fullscreen": false,
@@ -227,14 +227,14 @@
         "show_combat_log": true,
         "confirm_quit": true
     },
-    "play_time": 17711.895998239517,
-    "last_save_time": 1794488581.6885405,
+    "play_time": 18110.980748414993,
+    "last_save_time": 1794593147.741628,
     "run_active": true,
     "run": {
-        "current_biome": "caatinga",
+        "current_biome": "cerrado",
         "map": {
-            "biome_id": "caatinga",
-            "current_node_id": 20,
+            "biome_id": "cerrado",
+            "current_node_id": 24,
             "nodes": {
                 "0": {
                     "node_id": 0,
@@ -311,15 +311,15 @@
                         1,
                         2
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
-                    "blocked": true
+                    "blocked": false
                 },
                 "5": {
                     "node_id": 5,
                     "floor": 2,
                     "position": 2,
-                    "node_type": "elite",
+                    "node_type": "combat",
                     "connections": [
                         8,
                         9
@@ -327,9 +327,9 @@
                     "parents": [
                         2
                     ],
-                    "visited": true,
+                    "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "6": {
                     "node_id": 6,
@@ -368,7 +368,7 @@
                     "node_id": 8,
                     "floor": 3,
                     "position": 2,
-                    "node_type": "combat",
+                    "node_type": "elite",
                     "connections": [
                         12,
                         13
@@ -377,15 +377,15 @@
                         4,
                         5
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
-                    "blocked": true
+                    "blocked": false
                 },
                 "9": {
                     "node_id": 9,
                     "floor": 3,
                     "position": 3,
-                    "node_type": "rescue_animal",
+                    "node_type": "event",
                     "connections": [
                         12,
                         13
@@ -393,15 +393,15 @@
                     "parents": [
                         5
                     ],
-                    "visited": true,
+                    "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "10": {
                     "node_id": 10,
                     "floor": 4,
                     "position": 0,
-                    "node_type": "elite",
+                    "node_type": "combat",
                     "connections": [
                         14,
                         15
@@ -417,7 +417,7 @@
                     "node_id": 11,
                     "floor": 4,
                     "position": 1,
-                    "node_type": "event",
+                    "node_type": "rescue_animal",
                     "connections": [
                         15,
                         16
@@ -444,9 +444,9 @@
                         8,
                         9
                     ],
-                    "visited": true,
+                    "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "13": {
                     "node_id": 13,
@@ -461,9 +461,9 @@
                         8,
                         9
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
-                    "blocked": true
+                    "blocked": false
                 },
                 "14": {
                     "node_id": 14,
@@ -512,9 +512,9 @@
                         12,
                         13
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
-                    "blocked": true
+                    "blocked": false
                 },
                 "17": {
                     "node_id": 17,
@@ -529,9 +529,9 @@
                         12,
                         13
                     ],
-                    "visited": true,
+                    "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "18": {
                     "node_id": 18,
@@ -580,15 +580,15 @@
                         16,
                         17
                     ],
-                    "visited": true,
+                    "visited": false,
                     "available": false,
-                    "blocked": false
+                    "blocked": true
                 },
                 "21": {
                     "node_id": 21,
                     "floor": 6,
                     "position": 3,
-                    "node_type": "combat",
+                    "node_type": "elite",
                     "connections": [
                         23,
                         24
@@ -597,9 +597,9 @@
                         16,
                         17
                     ],
-                    "visited": false,
+                    "visited": true,
                     "available": false,
-                    "blocked": true
+                    "blocked": false
                 },
                 "22": {
                     "node_id": 22,
@@ -633,8 +633,8 @@
                         21
                     ],
                     "visited": false,
-                    "available": true,
-                    "blocked": false
+                    "available": false,
+                    "blocked": true
                 },
                 "24": {
                     "node_id": 24,
@@ -650,8 +650,8 @@
                         20,
                         21
                     ],
-                    "visited": false,
-                    "available": true,
+                    "visited": true,
+                    "available": false,
                     "blocked": false
                 },
                 "25": {
@@ -668,7 +668,7 @@
                         24
                     ],
                     "visited": false,
-                    "available": false,
+                    "available": true,
                     "blocked": false
                 },
                 "26": {
@@ -685,7 +685,7 @@
                         24
                     ],
                     "visited": false,
-                    "available": false,
+                    "available": true,
                     "blocked": false
                 },
                 "27": {
@@ -706,9 +706,9 @@
         }
     },
     "potions": {
-        "health": 72,
-        "defense": 28,
-        "attack": 57,
-        "revive": 3
+        "health": 28,
+        "defense": 6,
+        "attack": 5,
+        "revive": 5
     }
 }
