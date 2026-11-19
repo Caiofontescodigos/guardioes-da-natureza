@@ -4,6 +4,7 @@ import time
 from copy import deepcopy
 
 from config import BASE_DIR, SAVE_DIR as CONFIG_SAVE_DIR, DEFAULT_GLOBAL_SETTINGS
+from src.consumables import POTION_KEYS, clamp_count
 
 MAX_SLOTS = 3
 SAVE_VERSION = "3.2"
@@ -136,11 +137,9 @@ class SaveManager:
         if not isinstance(potions, dict):
             potions = {}
             data["potions"] = potions
-        for potion_key in ("health", "defense", "attack", "revive"):
-            try:
-                potions[potion_key] = max(0, int(potions.get(potion_key) or 0))
-            except (TypeError, ValueError):
-                potions[potion_key] = 0
+        for potion_key in POTION_KEYS:
+            potions[potion_key] = clamp_count(
+                potion_key, potions.get(potion_key) or 0)
         unlocked_biomes = data.get("unlocked_biomes")
         if isinstance(unlocked_biomes, list):
             # Pampa was inserted before Amazonia.  Players who already
@@ -358,6 +357,10 @@ class SaveManager:
         self.active_slot = slot
         self._migrate_slot(slot)
         data = self._read_slot(slot) or data
+        # Ensure in-memory data also respects item limits even for saves
+        # created before the limits existed (the normalized values are
+        # persisted again on the next save).
+        self._ensure_defaults(data)
         return data
 
     def load_slot(self, slot):

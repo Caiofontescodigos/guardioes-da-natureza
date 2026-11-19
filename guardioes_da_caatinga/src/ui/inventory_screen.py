@@ -4,6 +4,9 @@ import pygame
 
 from config import (GRAY, GREEN, RED, YELLOW, SCREEN_HEIGHT, load_animals,
                     load_json, load_upgrades)
+from src.consumables import (EFFECT_SHORT_NAMES, ITEM_EFFECTS, ITEM_NAMES,
+                             POTION_KEYS, can_target, get_active_potion_effects,
+                             get_limit, invalid_target_reason)
 from src.ui.components import draw_bar
 from src.ui.layout import (CENTER_X, SERTAO_DARK, SERTAO_CREAM, SERTAO_GOLD,
                            SERTAO_LIGHT, draw_sertao_panel,
@@ -40,23 +43,51 @@ class InventoryScreen:
         self.feedback_error = False
         self.feedback_until = 0
 
+        # Individual-use selection state. Select one item, then click the
+        # animal that should receive it. The item stays selected after each
+        # use until the player clicks Cancelar (or the item button again).
+        self.selected_item = None
+        self.selected_animal_id = None
+        self.hover_animal_id = None
+        self.hover_cancel = False
+        self._use_locked = False
+        self.cancel_button = pygame.Rect(1057, 642, 148, 38)
+
     def _build_potion_buttons(self):
         panel = pygame.Rect(665, 420, 560, 215)
         rects = {}
-        for index, key in enumerate(("health", "defense", "attack", "revive")):
+        for index, key in enumerate(POTION_KEYS):
             y = panel.y + 46 + index * 24
             rects[key] = pygame.Rect(panel.right - 100, y, 80, 22)
         return rects
+
+    def _animal_card_rect(self, index):
+        panel = pygame.Rect(55, 105, 590, 530)
+        return pygame.Rect(panel.x + 15, panel.y + 56 + index * 152,
+                           panel.w - 30, 140)
+
+    def _cancel_selection(self):
+        self.selected_item = None
+        self.selected_animal_id = None
 
     def set_feedback(self, message, error=False):
         self.feedback = message
         self.feedback_error = error
         self.feedback_until = pygame.time.get_ticks() + 1800
+        # The game calls this after processing a confirmed use. Releasing the
+        # lock only here prevents a repeated click from consuming twice.
+        self._use_locked = False
 
     # ------------------------------------------------------------- events
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if self.selected_item is not None:
+                self._cancel_selection()
+                return None
             return "back"
+
+        if self._use_locked:
+            return None
 
         if event.type == pygame.MOUSEMOTION:
             mouse_pos = getattr(event, "pos", None) or get_mouse_pos()
@@ -66,26 +97,79 @@ class InventoryScreen:
                 if rect.collidepoint(mouse_pos):
                     self.hover_potion = key
                     break
+            self.hover_animal_id = None
+            if self.selected_item is not None:
+                for index, animal in enumerate(self.party[:3]):
+                    if self._animal_card_rect(index).collidepoint(mouse_pos):
+                        self.hover_animal_id = animal.animal_id
+                        break
+            self.hover_cancel = (self.selected_item is not None
+                                 and self.cancel_button.collidepoint(mouse_pos))
             return None
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_pos = getattr(event, "pos", None) or get_mouse_pos()
             if self.back_button.collidepoint(mouse_pos):
                 return "back"
+
+            if self.selected_item is not None:
+                if self.cancel_button.collidepoint(mouse_pos):
+                    self._cancel_selection()
+                    return None
+
+                for index, animal in enumerate(self.party[:3]):
+                    if not self._animal_card_rect(index).collidepoint(mouse_pos):
+                        continue
+                    if can_target(self.selected_item, animal):
+                        return self._use_on_animal(animal)
+                    self.set_feedback(
+                        invalid_target_reason(self.selected_item),
+                        error=True)
+                    return None
+
             for key, rect in self.potion_buttons.items():
                 if rect.collidepoint(mouse_pos):
-                    if self._can_use_potion(key):
-                        return ("use_potion", key)
-                    counts = self._potion_counts()
-                    if counts.get(key, 0) <= 0:
-                        self.set_feedback("Sem item disponivel.", error=True)
-                    elif key == "revive":
-                        self.set_feedback(
-                            "Nenhum animal caido para reanimar.", error=True)
-                    else:
-                        self.set_feedback("Vida ja esta cheia.", error=True)
+                    if key == self.selected_item:
+                        self._cancel_selection()
+                        return None
+                    self._start_selection(key)
                     return None
         return None
+
+    def _start_selection(self, key):
+        if not self._can_use_potion(key):
+            counts = self._potion_counts()
+            if counts.get(key, 0) <= 0:
+                self.set_feedback("Sem item disponivel.", error=True)
+            elif not self.party:
+                self.set_feedback("Nenhum animal na equipe.", error=True)
+            else:
+                self.set_feedback(invalid_target_reason(key), error=True)
+            return
+        self.selected_item = key
+        self.selected_animal_id = None
+        self.feedback = ""
+
+    def _use_on_animal(self, animal):
+        """Consume the selected item directly on the clicked animal.
+
+        The selected item is intentionally kept active after the use so the
+        player can use it again on another animal. Only Cancelar clears it.
+        """
+        if (self._use_locked or self.selected_item is None
+                or not can_target(self.selected_item, animal)):
+            return None
+        key = self.selected_item
+        if self._potion_counts().get(key, 0) <= 0:
+            self.set_feedback("Sem item disponivel.", error=True)
+            return None
+        animal_id = animal.animal_id
+        self.selected_animal_id = animal_id
+        # Lock before returning; Game unlocks through set_feedback after the
+        # effect and inventory quantities have been updated. The selection
+        # itself is not cleared here.
+        self._use_locked = True
+        return ("use_potion", key, animal_id)
 
     # --------------------------------------------------------------- draw
     def draw(self, surface):
@@ -108,6 +192,7 @@ class InventoryScreen:
         self._draw_party_panel(surface)
         self._draw_upgrades_panel(surface)
         self._draw_items_panel(surface)
+        self._draw_selection_bar(surface)
 
         draw_sertao_button(surface, self.back_button, "Voltar",
                            is_hovered=self.hover_back, font_size=22)
@@ -122,6 +207,11 @@ class InventoryScreen:
         draw_sertao_panel(surface, panel.x, panel.y, panel.w, panel.h)
         draw_text(surface, "EQUIPE", (panel.x + 20, panel.y + 16),
                   font_size=24, color=SERTAO_GOLD)
+        if self.selected_item is not None:
+            draw_text_right(
+                surface, "Escolha 1 animal",
+                (panel.right - 20, panel.y + 22),
+                font_size=16, color=SERTAO_GOLD)
 
         if not self.party:
             draw_text(surface, "Nenhum animal na equipe.",
@@ -132,15 +222,27 @@ class InventoryScreen:
         card_h = 140
         gap = 12
         y = panel.y + 56
-        for animal in self.party[:3]:
+        for index, animal in enumerate(self.party[:3]):
             self._draw_animal_card(surface, animal, panel.x + 15, y,
-                                   panel.w - 30, card_h)
+                                   panel.w - 30, card_h, index=index)
             y += card_h + gap
 
-    def _draw_animal_card(self, surface, animal, x, y, w, h):
+    def _draw_animal_card(self, surface, animal, x, y, w, h, index=None):
         card = pygame.Rect(x, y, w, h)
         draw_sertao_panel(surface, card.x, card.y, card.w, card.h,
                           border_color=SERTAO_LIGHT, alpha=200)
+
+        if self.selected_item is not None:
+            eligible = can_target(self.selected_item, animal)
+            hovered = animal.animal_id == self.hover_animal_id
+            if eligible:
+                width = 3 if hovered else 2
+                pygame.draw.rect(surface, SERTAO_GOLD, card, width,
+                                 border_radius=10)
+                if hovered:
+                    draw_text_right(surface, "ESCOLHER",
+                                    (card.right - 14, card.bottom - 24),
+                                    font_size=12, color=SERTAO_GOLD)
 
         sprite = None
         if self.assets:
@@ -176,6 +278,18 @@ class InventoryScreen:
             animal.attack, animal.defense, animal.speed)
         draw_text(surface, stats, (text_x, card.y + 96),
                   font_size=17, color=SERTAO_CREAM)
+
+        effects = get_active_potion_effects(animal)
+        if effects:
+            parts = []
+            for key, value, turns in effects:
+                label = EFFECT_SHORT_NAMES.get(key, key.upper())
+                suffix = "turno" if turns == 1 else "turnos"
+                parts.append("{} +{} ({} {})".format(
+                    label, value, turns, suffix))
+            draw_text(surface, "Efeitos: " + "   ".join(parts),
+                      (text_x, card.y + 118), font_size=11,
+                      color=SERTAO_GOLD)
 
         if not animal.is_alive or animal.hp <= 0:
             draw_text_right(surface, "CAIDO",
@@ -240,30 +354,22 @@ class InventoryScreen:
                         font_size=18, color=SERTAO_GOLD)
 
         counts = self._potion_counts()
-        labels = {
-            "health": "Pocao de Cura",
-            "defense": "Pocao de Defesa",
-            "attack": "Pocao de Ataque",
-            "revive": "Cruz Dourada",
-        }
-        effects = {
-            "health": "cura 30 HP",
-            "defense": "+5 DEF / 3 turnos",
-            "attack": "+3 ATK / 3 turnos",
-            "revive": "reanima os caidos",
-        }
         x = panel.x + 20
-        for index, key in enumerate(("health", "defense", "attack", "revive")):
+        for index, key in enumerate(POTION_KEYS):
             y = panel.y + 46 + index * 24
             qty = counts.get(key, 0)
+            limit = get_limit(key)
             enabled = self._can_use_potion(key)
             label_color = SERTAO_CREAM if qty > 0 else GRAY
-            draw_text(surface, "{}  x{}".format(labels[key], qty),
-                      (x, y + 2), font_size=15, color=label_color)
-            draw_text(surface, effects[key], (x + 175, y + 4),
-                      font_size=11, color=SERTAO_LIGHT)
+            if qty >= limit:
+                label_color = RED
+            draw_text(surface, "{} {}/{}".format(ITEM_NAMES[key], qty, limit),
+                      (x, y + 2), font_size=14, color=label_color)
+            draw_text(surface, ITEM_EFFECTS[key], (x + 190, y + 4),
+                      font_size=10, color=SERTAO_LIGHT)
+            label = "Cancelar" if key == self.selected_item else "Usar"
             draw_sertao_button(
-                surface, self.potion_buttons[key], "Usar",
+                surface, self.potion_buttons[key], label,
                 is_hovered=(self.hover_potion == key and enabled),
                 enabled=enabled, font_size=13)
 
@@ -283,6 +389,19 @@ class InventoryScreen:
             draw_text(surface, "Nenhuma reliquia encontrada.",
                       (x, y), font_size=15, color=GRAY)
 
+    def _draw_selection_bar(self, surface):
+        if self.selected_item is None:
+            return
+        status = "Clique em um animal destacado para usar {}.".format(
+            ITEM_NAMES[self.selected_item])
+        draw_text(surface, status, (665, 651), font_size=13,
+                  color=SERTAO_CREAM)
+        draw_text(surface, "Item selecionado ate Cancelar.",
+                  (665, 668), font_size=11, color=SERTAO_LIGHT)
+        draw_sertao_button(
+            surface, self.cancel_button, "Cancelar",
+            is_hovered=self.hover_cancel, font_size=15)
+
     # ------------------------------------------------------------- helpers
     def _can_use_potion(self, key):
         if not self.party:
@@ -290,22 +409,19 @@ class InventoryScreen:
         counts = self._potion_counts()
         if counts.get(key, 0) <= 0:
             return False
-        if key == "health":
-            return any(a.is_alive and a.hp < a.max_hp for a in self.party)
-        if key == "revive":
-            return any(not a.is_alive or a.hp <= 0 for a in self.party)
-        return True
+        return any(can_target(key, animal) for animal in self.party[:3])
 
     def _potion_counts(self):
-        counts = {"health": 0, "defense": 0, "attack": 0, "revive": 0}
+        counts = {key: 0 for key in POTION_KEYS}
         potions = self.save_data.get("potions")
         if isinstance(potions, dict):
-            for key in counts:
+            for key in POTION_KEYS:
                 try:
                     counts[key] = max(0, int(potions.get(key) or 0))
                 except (TypeError, ValueError):
                     counts[key] = 0
-            return counts
+            return {key: min(get_limit(key), value)
+                    for key, value in counts.items()}
 
         inv = (self.save_data.get("inventory")
                or self.save_data.get("potions") or {})
@@ -337,7 +453,8 @@ class InventoryScreen:
                     counts["attack"] += qty
                 elif "revive" in item_id or "cruz" in item_id:
                     counts["revive"] += qty
-        return counts
+        return {key: min(get_limit(key), value)
+                for key, value in counts.items()}
 
     def _owned_relics(self):
         owned = (self.save_data.get("relics")
