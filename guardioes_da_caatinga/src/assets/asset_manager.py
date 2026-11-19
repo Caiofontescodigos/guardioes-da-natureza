@@ -10,9 +10,19 @@ ANIMAL_SPRITE_MAP = {
     "tamandua_bandeira": {"base": "Tamandua.png", "evolution_1": None, "evolution_2": None},
     "capivara": {"base": "Capivara.png", "evolution_1": None, "evolution_2": None},
     "onca_pintada": {"base": "Onça-pintada.png", "evolution_1": None, "evolution_2": None},
+    "harpia": {"base": "Harpia.png", "evolution_1": None, "evolution_2": None},
+    "pirarucu": {"base": "Pirarucu.png", "evolution_1": None, "evolution_2": None},
+    "onca_do_pantanal": {"base": "OncaDoPantanal.png", "evolution_1": None, "evolution_2": None},
 }
 
 EVOLUTION_STAGE_FILES = {0: "base", 1: "evolution_1", 2: "evolution_2"}
+
+# Full art used inside each frame of the legendary animal selection screen.
+LEGENDARY_ART_MAP = {
+    "harpia": "fundoharpia.png",
+    "pirarucu": "fundopirarucu.png",
+    "onca_do_pantanal": "fundoOncaPantanal.png",
+}
 
 ENEMY_SPRITE_MAP = {
     "brasa": "Brasa.png",
@@ -60,12 +70,16 @@ NODE_ICON_MAP = {
     "shop": "node_shop.png",
     "boss": "node_boss.png",
     "rescue_animal": "node_animal.png",
+    "legendary": "node_legendary.png",
 }
+
+NODE_CONNECTION_FILENAME = "node_connection.png"
 
 BACKGROUND_MAP = {
     "main_menu": "TelainicialNova.jpeg",
     "how_to_play": "TelainicialNova.jpeg",
     "animal_select": "SeleçãoEquipe.png",
+    "legendary_select": "fundolendarios.png",
     "biome_select": "TelainicialNova.jpeg",
     "settings": "TelainicialNova.jpeg",
     "acampamento": "TelainicialNova.jpeg",
@@ -191,6 +205,46 @@ class AssetManager:
                                max_width=max_width, max_height=max_height,
                                evolution_stage=evolution_stage)
 
+    def get_legendary_art(self, animal_id, target_width, target_height):
+        """Return the full legendary artwork cropped to fill a frame hole.
+
+        Each legendary animal has a dedicated environment illustration.  The
+        image is scaled to cover ``target_width`` x ``target_height`` and then
+        centre-cropped, so the frame is completely filled without distortion.
+        """
+        filename = LEGENDARY_ART_MAP.get(animal_id)
+        if filename is None:
+            return None
+
+        img = self._cache.get(filename)
+        if img is None:
+            print(f"[AssetManager] Arte lendaria ausente: {filename} "
+                  f"(animal: {animal_id})")
+            return None
+
+        target_width = max(1, int(target_width))
+        target_height = max(1, int(target_height))
+        cache_key = f"legendary_art_{filename}_{target_width}_{target_height}"
+        cached = self._surfaces_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        src_w, src_h = img.get_size()
+        ratio = max(target_width / src_w, target_height / src_h)
+        scaled_w = max(target_width, int(round(src_w * ratio)))
+        scaled_h = max(target_height, int(round(src_h * ratio)))
+        scaled = pygame.transform.smoothscale(img, (scaled_w, scaled_h))
+        left = (scaled_w - target_width) // 2
+        top = (scaled_h - target_height) // 2
+        art = scaled.subsurface(
+            (left, top, target_width, target_height)).copy()
+        self._surfaces_cache[cache_key] = art
+        return art
+
+    def has_legendary_frame(self):
+        """True when the legendary selection artwork was loaded."""
+        return "fundolendarios.png" in self._cache
+
     def get_enemy_sprite(self, enemy_id, max_width=140, max_height=140):
         return self.get_sprite(enemy_id, is_enemy=True, max_width=max_width, max_height=max_height, flip_horizontal=False)
 
@@ -267,6 +321,23 @@ class AssetManager:
         w, h = img.get_size()
         target_width = max(1, int(w * target_height / h))
         scaled = pygame.transform.smoothscale(img, (target_width, target_height))
+        self._surfaces_cache[cache_key] = scaled
+        return scaled
+
+    def get_node_connection(self, thickness=9):
+        """Return the cached map-path connector strip scaled to ``thickness``."""
+        img = self._cache.get(NODE_CONNECTION_FILENAME)
+        if img is None:
+            return None
+
+        thickness = max(1, int(thickness))
+        cache_key = f"nodeconn_{NODE_CONNECTION_FILENAME}_{thickness}"
+        if cache_key in self._surfaces_cache:
+            return self._surfaces_cache[cache_key]
+
+        w, h = img.get_size()
+        target_width = max(1, int(round(w * thickness / h)))
+        scaled = pygame.transform.smoothscale(img, (target_width, thickness))
         self._surfaces_cache[cache_key] = scaled
         return scaled
 

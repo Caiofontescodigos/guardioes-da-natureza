@@ -1,8 +1,7 @@
+import math
 import pygame
-import time
 from config import (WHITE, BLACK, GRAY, DARK_GRAY, RED, GREEN, BLUE, YELLOW, BROWN,
                     CREAM, SCREEN_WIDTH, SCREEN_HEIGHT, NODE_COLORS, BIOME_COLORS)
-from src.ui.components import draw_text
 from src.ui.layout import SERTAO_GOLD, draw_sertao_button
 from src.ui.text import get_font, draw_text_block_colored, measure_block
 from src.state import NodeType
@@ -63,12 +62,25 @@ NODE_TOOLTIPS = {
             "Possibilidade de recrutar",
             "um novo membro para equipe."
         ]
+    },
+    NodeType.LEGENDARY: {
+        "title": "Nó Lendário",
+        "lines": [
+            "Um animal lendário está preso",
+            "atrás de um chefe guardião.",
+            "Derrote o chefe para libertá-lo!"
+        ]
     }
 }
 
 
 class MapUI:
-    NODE_ICON_HEIGHT = 52
+    NODE_ICON_HEIGHT = 46
+    CONNECTION_THICKNESS = 9
+    MAP_LEFT = 265
+    MAP_RIGHT = 1175
+    MAP_TOP = 132
+    MAP_BOTTOM = 648
     BUTTON_ORDER = ("inicio", "bestiario", "inventario", "missoes")
     BUTTON_LABELS = {
         "inicio": "INICIO",
@@ -85,17 +97,16 @@ class MapUI:
         self.map_gen = map_generator
         self.biome_id = biome_id
         self.assets = assets
-        self.node_radius = 26
+        self.node_radius = 23
         self.node_positions = {}
         self.calculate_positions()
 
-        self.hover_start_time = None
         self.hovered_node_id = None
         self.tooltip_alpha = 0
         self.tooltip_max_alpha = 220
-        self.tooltip_fade_speed = 8
 
         self._node_icon_cache = {}
+        self._connection_cache = {}
         self._available_glow = self._make_glow((255, 210, 80, 26),
                                                self.node_radius + 10)
         self._available_ring = self._make_ring((255, 215, 0, 70),
@@ -127,14 +138,21 @@ class MapUI:
                 floors[node.floor] = []
             floors[node.floor].append(node)
 
-        available_height = SCREEN_HEIGHT - 180
-        floor_height = available_height / max(len(floors) - 1, 1)
+        if not floors:
+            return
 
-        for floor, nodes in floors.items():
+        sorted_floors = sorted(floors.keys())
+        available_height = self.MAP_BOTTOM - self.MAP_TOP
+        floor_height = available_height / max(len(sorted_floors) - 1, 1)
+        map_width = self.MAP_RIGHT - self.MAP_LEFT
+        map_center_x = (self.MAP_LEFT + self.MAP_RIGHT) / 2
+
+        for idx, floor in enumerate(sorted_floors):
+            nodes = floors[floor]
             nodes.sort(key=lambda n: n.position)
-            y = 80 + floor * floor_height
-            spacing = min(180, (SCREEN_WIDTH - 200) / max(len(nodes) - 1, 1))
-            start_x = (SCREEN_WIDTH - (len(nodes) - 1) * spacing) / 2
+            y = self.MAP_TOP + idx * floor_height
+            spacing = min(195, map_width / max(len(nodes) - 1, 1))
+            start_x = map_center_x - ((len(nodes) - 1) * spacing) / 2
 
             for i, node in enumerate(nodes):
                 x = start_x + i * spacing
@@ -152,7 +170,6 @@ class MapUI:
                 if node and node.available and not node.blocked:
                     dist = ((event.pos[0] - pos[0]) ** 2 + (event.pos[1] - pos[1]) ** 2) ** 0.5
                     if dist <= self.node_radius + 5:
-                        self.hover_start_time = None
                         self.hovered_node_id = None
                         self.tooltip_alpha = 0
                         return ("node", node_id)
@@ -167,10 +184,8 @@ class MapUI:
 
         self.hovered_button = hovered_button
         if hovered_button:
-            if self.hovered_node_id is not None:
-                self.hovered_node_id = None
-                self.hover_start_time = None
-                self.tooltip_alpha = 0
+            self.hovered_node_id = None
+            self.tooltip_alpha = 0
             return
 
         found_node = None
@@ -182,19 +197,8 @@ class MapUI:
                     found_node = node_id
                     break
 
-        if found_node != self.hovered_node_id:
-            self.hovered_node_id = found_node
-            self.hover_start_time = time.time() if found_node else None
-            self.tooltip_alpha = 0
-
-        if self.hovered_node_id is not None and self.hover_start_time:
-            elapsed = time.time() - self.hover_start_time
-            if elapsed >= 1.0:
-                self.tooltip_alpha = min(self.tooltip_max_alpha, self.tooltip_alpha + self.tooltip_fade_speed)
-            else:
-                self.tooltip_alpha = 0
-        else:
-            self.tooltip_alpha = 0
+        self.hovered_node_id = found_node
+        self.tooltip_alpha = self.tooltip_max_alpha if found_node is not None else 0
 
     def _is_boss_phase(self):
         """True once the boss node is reachable on the current map."""
@@ -220,8 +224,6 @@ class MapUI:
                     c = tuple(max(0, v - 15) for v in biome_color)
                     pygame.draw.circle(surface, c, (x, y), 1)
 
-        self._draw_legend_backdrop(surface)
-
         for node_id, node in self.map_gen.nodes.items():
             if node_id in self.node_positions:
                 self._draw_connections(surface, node)
@@ -230,19 +232,42 @@ class MapUI:
             if node_id in self.node_positions:
                 self._draw_node(surface, node)
 
-        self._draw_legend(surface)
         self._draw_buttons(surface)
         self._draw_tooltip(surface)
 
-    def _draw_legend_backdrop(self, surface):
-        """Translucent strip that keeps the legend readable over the art."""
-        rect = pygame.Rect(170, SCREEN_HEIGHT - 94, 1100, 56)
-        panel = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-        pygame.draw.rect(panel, (15, 12, 8, 150),
-                         (0, 0, rect.w, rect.h), border_radius=8)
-        pygame.draw.rect(panel, (130, 95, 45, 170),
-                         (0, 0, rect.w, rect.h), 1, border_radius=8)
-        surface.blit(panel, rect.topleft)
+    def _get_connection_surface(self, start_pos, end_pos, mode):
+        if not self.assets or not hasattr(self.assets, "get_node_connection"):
+            return None
+
+        cache_key = (start_pos, end_pos, mode)
+        if cache_key in self._connection_cache:
+            return self._connection_cache[cache_key]
+
+        base_strip = self.assets.get_node_connection(self.CONNECTION_THICKNESS)
+        if base_strip is None:
+            return None
+
+        dx = end_pos[0] - start_pos[0]
+        dy = end_pos[1] - start_pos[1]
+        length = max(1, int(round(math.hypot(dx, dy))))
+        thickness = base_strip.get_height()
+        tile_w = base_strip.get_width()
+
+        strip = pygame.Surface((length, thickness), pygame.SRCALPHA)
+        x = 0
+        while x < length:
+            strip.blit(base_strip, (x, 0))
+            x += tile_w
+
+        if mode == "blocked":
+            strip.fill((135, 125, 115, 215), special_flags=pygame.BLEND_RGBA_MULT)
+        elif mode == "default":
+            strip.fill((235, 225, 215, 255), special_flags=pygame.BLEND_RGBA_MULT)
+
+        angle = -math.degrees(math.atan2(dy, dx))
+        rotated = pygame.transform.rotozoom(strip, angle, 1.0)
+        self._connection_cache[cache_key] = rotated
+        return rotated
 
     def _draw_connections(self, surface, node):
         start_pos = self.node_positions.get(node.node_id)
@@ -250,15 +275,29 @@ class MapUI:
             return
         for conn_id in node.connections:
             end_pos = self.node_positions.get(conn_id)
-            if end_pos:
-                conn_node = self.map_gen.nodes.get(conn_id)
-                if node.blocked or (conn_node and conn_node.blocked):
-                    color = (30, 30, 30)
-                elif node.visited:
-                    color = GRAY
-                else:
-                    color = DARK_GRAY
-                pygame.draw.line(surface, color, start_pos, end_pos, 2)
+            if not end_pos:
+                continue
+            conn_node = self.map_gen.nodes.get(conn_id)
+            if node.blocked or (conn_node and conn_node.blocked):
+                mode = "blocked"
+                fallback_color = (30, 30, 30)
+            elif node.visited:
+                mode = "active"
+                fallback_color = GRAY
+            else:
+                mode = "default"
+                fallback_color = DARK_GRAY
+
+            conn_surface = self._get_connection_surface(
+                start_pos, end_pos, mode)
+            if conn_surface is not None:
+                mid = (
+                    (start_pos[0] + end_pos[0]) // 2,
+                    (start_pos[1] + end_pos[1]) // 2,
+                )
+                surface.blit(conn_surface, conn_surface.get_rect(center=mid))
+            else:
+                pygame.draw.line(surface, fallback_color, start_pos, end_pos, 2)
 
     @staticmethod
     def _make_glow(color, radius):
@@ -371,7 +410,8 @@ class MapUI:
             NodeType.CAMP: "C",
             NodeType.SHOP: "$",
             NodeType.BOSS: "B",
-            NodeType.RESCUE_ANIMAL: "A"
+            NodeType.RESCUE_ANIMAL: "A",
+            NodeType.LEGENDARY: "*"
         }
         return icons.get(node_type, "?")
 
@@ -402,39 +442,6 @@ class MapUI:
                 draw_sertao_button(
                     surface, rect, self.BUTTON_LABELS.get(key, key.upper()),
                     is_hovered=hovered, font_size=18)
-
-    def _draw_legend(self, surface):
-        legend_y = SCREEN_HEIGHT - 78
-        left_items = [
-            ("combat", "Combate"),
-            ("elite", "Elite"),
-            ("event", "Evento"),
-        ]
-        right_items = [
-            ("camp", "Acampamento"),
-            ("shop", "Loja"),
-            ("boss", "Chefe"),
-            ("rescue_animal", "Animal"),
-        ]
-        item_width = 140
-        left_start = 610 - len(left_items) * item_width
-        right_start = 670
-
-        for group, start_x in ((left_items, left_start),
-                               (right_items, right_start)):
-            for i, (key, label) in enumerate(group):
-                x = start_x + i * item_width
-                icon = None
-                if self.assets:
-                    icon = self.assets.get_node_icon(key, 26)
-                if icon is not None:
-                    surface.blit(icon, icon.get_rect(midleft=(x, legend_y + 10)))
-                else:
-                    pygame.draw.circle(
-                        surface, NODE_COLORS.get(key, GRAY),
-                        (x + 8, legend_y + 10), 8)
-                draw_text(surface, label, (x + 30, legend_y),
-                          font_size=14, color=WHITE)
 
     def _draw_tooltip(self, surface):
         if self.tooltip_alpha <= 0 or self.hovered_node_id is None:

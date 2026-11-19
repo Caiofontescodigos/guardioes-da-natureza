@@ -1,6 +1,7 @@
 from src.combat.combat import CombatSystem
 from src.entities.animal import Animal
-from src.entities.enemy import create_enemy_group, create_elite_enemy, create_boss
+from src.entities.enemy import (create_enemy_group, create_elite_enemy,
+                                create_boss, create_legendary_boss)
 from src.map.map_generator import MapGenerator
 from src.progression.level_up import LevelUpSystem
 from src.save.save_manager import SaveManager
@@ -15,7 +16,8 @@ from config import (SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE, BLACK, GRAY, RED, G
                     BLUE, YELLOW, BROWN, CREAM, DARK_GRAY, ORANGE, PURPLE,
                     DARK_BROWN, GOLD, load_biomes, load_animals, load_events,
                     load_global_settings, save_global_settings,
-                    DEFAULT_GLOBAL_SETTINGS, IMAGES_DIR, MUSIC_DIR)
+                    DEFAULT_GLOBAL_SETTINGS, IMAGES_DIR, MUSIC_DIR,
+                    LEGENDARY_LEVEL_BONUS)
 import copy
 import random
 import pygame
@@ -70,6 +72,9 @@ ANIMAL_EMOJIS = {
     "tamandua_bandeira": "\U0001f41c",
     "capivara": "\U0001f9ab",
     "onca_pintada": "\U0001f406",
+    "harpia": "\U0001f985",
+    "pirarucu": "\U0001f41f",
+    "onca_do_pantanal": "\U0001f406",
 }
 
 ENCOUNTER_TEXTS = [
@@ -258,6 +263,8 @@ class Game:
         self.victory_message = ""
         self.pending_rescue_animal = None
         self.pending_bonus_rescue = None
+        self.pending_legendary_animal = None
+        self.legendary_combat_animal = None
 
         self.node_xp_bonus = 0
         self.node_gold_bonus = 1
@@ -481,6 +488,14 @@ class Game:
         biomes = (self.save_data or {}).get("unlocked_biomes") or ["caatinga"]
         return "caatinga" if "caatinga" in biomes else biomes[0]
 
+    def _locked_legendary_ids(self):
+        """Legendary animals still waiting for their map node/boss fight."""
+        unlocked = set((self.save_data or {}).get("unlocked_animals", []))
+        return [
+            aid for aid, data in load_animals().items()
+            if data.get("legendary") and aid not in unlocked
+        ]
+
     def _resume_saved_run(self):
         run = self.save_data.get("run")
         biome = run.get("current_biome") if isinstance(run, dict) else None
@@ -519,6 +534,8 @@ class Game:
         self.next_biome_pending = None
         self.pending_rescue_animal = None
         self.pending_bonus_rescue = None
+        self.pending_legendary_animal = None
+        self.legendary_combat_animal = None
         self.encounter_animal_id = None
         self.encounter_step = "main"
         self.encounter_swap_index = -1
@@ -1067,6 +1084,9 @@ class Game:
                 return
             self.handle_level_up_events(event)
 
+        elif self.state == GameState.LEGENDARY_UNLOCK:
+            self.handle_legendary_unlock_events(event)
+
         elif self.state == GameState.RESCUE_ANIMAL:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self._settings_origin = "journey"
@@ -1102,6 +1122,7 @@ class Game:
                         if prev is not None and prev in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
                                                          GameState.SHOP, GameState.CAMP,
                                                          GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                         GameState.LEGENDARY_UNLOCK,
                                                          GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
                                                          GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
                             self.state = prev
@@ -1139,6 +1160,7 @@ class Game:
                     if prev is not None and prev in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
                                                      GameState.SHOP, GameState.CAMP,
                                                      GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                     GameState.LEGENDARY_UNLOCK,
                                                      GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
                                                      GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
                         self.state = prev
@@ -1460,6 +1482,7 @@ class Game:
             elif self.map_generator is not None and self.state in (GameState.MAP, GameState.PAUSE, GameState.EVENT,
                                                                    GameState.SHOP, GameState.CAMP,
                                                                    GameState.LEVEL_UP, GameState.RESCUE_ANIMAL,
+                                                                   GameState.LEGENDARY_UNLOCK,
                                                                    GameState.COMBAT, GameState.ANIMAL_ENCOUNTER,
                                                                    GameState.SWAP_ANIMAL, GameState.CAGE_REWARD):
                 self._settings_origin = "journey"
@@ -1693,6 +1716,8 @@ class Game:
         self.next_biome_pending = None
         self.pending_rescue_animal = None
         self.pending_bonus_rescue = None
+        self.pending_legendary_animal = None
+        self.legendary_combat_animal = None
         self.encounter_animal_id = None
         self.encounter_step = "main"
         self.encounter_swap_index = -1
@@ -1741,7 +1766,7 @@ class Game:
         if self.achievement_manager.check_and_clear_flag("game_over_pending"):
             self.achievement_manager.set_flag("comeback", True)
         self.map_generator = MapGenerator(self.current_biome)
-        self.map_generator.generate()
+        self.map_generator.generate(self._locked_legendary_ids())
         self.map_ui = None
         self.pending_level_ups = 0
         self.pending_level_up_animals = []
@@ -1751,6 +1776,8 @@ class Game:
         self.current_evolution_stage = 0
         self.next_biome_pending = None
         self.pending_bonus_rescue = None
+        self.pending_legendary_animal = None
+        self.legendary_combat_animal = None
         self._run_start_time = time.time()
         try:
             # Single manager, explicit journey context: each new map/biome gets
@@ -1814,15 +1841,23 @@ class Game:
         if node.node_type == NodeType.COMBAT:
             self.node_xp_bonus = 1
             self.node_gold_bonus = 1
+            self.legendary_combat_animal = None
             self.start_combat(is_elite=False)
         elif node.node_type == NodeType.ELITE:
             self.node_xp_bonus = 1
             self.node_gold_bonus = 1
+            self.legendary_combat_animal = None
             self.start_combat(is_elite=True)
         elif node.node_type == NodeType.BOSS:
             self.node_xp_bonus = 3
             self.node_gold_bonus = 1
+            self.legendary_combat_animal = None
             self.start_combat(is_boss=True)
+        elif node.node_type == NodeType.LEGENDARY:
+            self.node_xp_bonus = 3
+            self.node_gold_bonus = 1
+            self.legendary_combat_animal = getattr(node, "legendary_id", None)
+            self.start_combat(is_boss=True, is_legendary=True)
         elif node.node_type == NodeType.EVENT:
             self.start_event()
         elif node.node_type == NodeType.SHOP:
@@ -1832,7 +1867,7 @@ class Game:
         elif node.node_type == NodeType.RESCUE_ANIMAL:
             self.start_animal_encounter()
 
-    def start_combat(self, is_elite=False, is_boss=False):
+    def start_combat(self, is_elite=False, is_boss=False, is_legendary=False):
         biome_data = load_biomes()[self.current_biome]
         enemy_types = biome_data["enemy_types"]
         level_range = biome_data["enemy_level_range"]
@@ -1841,7 +1876,12 @@ class Game:
 
         if is_boss:
             level = max_level + 2
-            enemies = [create_boss(self.current_biome, level)]
+            if is_legendary:
+                level = max_level + LEGENDARY_LEVEL_BONUS
+                enemies = [create_legendary_boss(
+                    self.legendary_combat_animal, level)]
+            else:
+                enemies = [create_boss(self.current_biome, level)]
         elif is_elite:
             level = max_level
             enemies = create_elite_enemy(enemy_types, level)
@@ -1988,6 +2028,24 @@ class Game:
 
     def _after_leveling(self, message):
         self.current_level_up_animal = None
+
+        # Legendary nodes are boss fights with a special, guaranteed reward:
+        # the animal they guard is unlocked instead of the regular biome
+        # progression/rescue flow.
+        legendary_node = self._was_legendary_node()
+        if legendary_node:
+            legendary_id = (self.legendary_combat_animal
+                            or self._last_visited_node().legendary_id)
+            self.save_data = self.save_manager.update_statistics(
+                self.save_data, "bosses_defeated")
+            self.save_data = self.save_manager.update_statistics(
+                self.save_data, "legendary_bosses_defeated")
+            if (legendary_id and legendary_id not in
+                    self.save_data.get("unlocked_animals", [])):
+                self.start_legendary_unlock(legendary_id)
+                return
+            self.legendary_combat_animal = None
+
         boss_node = self._was_boss_node()
         if boss_node:
             self.next_biome_pending = self._get_next_biome()
@@ -2027,13 +2085,16 @@ class Game:
         if bosses_defeated >= 3:
             return
         unlocked = set(self.save_data.get("unlocked_animals", []))
-        all_animals = set(load_animals().keys())
+        animals_data = load_animals()
+        all_animals = {
+            aid for aid, data in animals_data.items()
+            if not data.get("legendary")
+        }
         undiscovered = list(all_animals - unlocked)
         if not undiscovered:
             return
         cage_id = random.choice(undiscovered)
         self.pending_cage_animal = cage_id
-        animals_data = load_animals()
         animal_info = animals_data.get(cage_id, {})
         from src.ui.menu import CageRewardScreen
         self.cage_reward_screen = CageRewardScreen(animal_info, self.assets)
@@ -2042,12 +2103,20 @@ class Game:
         self._save_permanent_data()
         self.state = GameState.CAGE_REWARD
 
-    def _was_boss_node(self):
+    def _last_visited_node(self):
         visited = [n for n in self.map_generator.nodes.values() if n.visited]
         if visited:
-            last = max(visited, key=lambda n: n.floor)
-            return last.node_type == NodeType.BOSS
-        return False
+            return max(visited, key=lambda n: n.floor)
+        return None
+
+    def _was_boss_node(self):
+        last = self._last_visited_node()
+        return last is not None and last.node_type in (
+            NodeType.BOSS, NodeType.LEGENDARY)
+
+    def _was_legendary_node(self):
+        last = self._last_visited_node()
+        return last is not None and last.node_type == NodeType.LEGENDARY
 
     def _get_next_biome(self):
         biomes_order = ["caatinga", "cerrado", "pantanal", "mata_atlantica", "pampa", "amazonia"]
@@ -2363,6 +2432,47 @@ class Game:
                     self._after_leveling(f"Melhoria: {upgrade['name']}")
                     break
 
+    def start_legendary_unlock(self, animal_id):
+        """Unlock a legendary animal after its guardian boss is defeated."""
+        animals = load_animals()
+        animal = animals.get(animal_id, {})
+        name = animal.get("name", animal_id)
+        self.pending_legendary_animal = animal_id
+        self.legendary_combat_animal = None
+        self.save_data = self.save_manager.add_unlocked_animal(
+            self.save_data, animal_id)
+        self.save_data = self.save_manager.update_statistics(
+            self.save_data, "legendary_animals_unlocked")
+        self.save_data, _ = self.save_manager.discover_bestiary(
+            self.save_data, animal_id)
+        self._save_permanent_data()
+        self.victory_message = f"Chefe derrotado! {name} desbloqueado!"
+        self.victory_time = time.time()
+        self.state = GameState.LEGENDARY_UNLOCK
+        self._sync_music_to_context()
+
+    def handle_legendary_unlock_events(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pass
+        elif event.type == pygame.KEYDOWN and event.key in (
+                pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE,
+                pygame.K_ESCAPE):
+            pass
+        else:
+            return
+
+        animal_id = self.pending_legendary_animal
+        if animal_id:
+            self._add_to_party(animal_id, return_state=GameState.VICTORY)
+        self.pending_legendary_animal = None
+        self.pending_bonus_rescue = None
+        if self.state != GameState.SWAP_ANIMAL:
+            self._save_permanent_data()
+            if self.victory_time <= 0:
+                self.victory_time = time.time()
+            self.state = GameState.VICTORY
+            self._sync_music_to_context()
+
     def start_rescue(self, animal_id):
         self.pending_rescue_animal = animal_id
         self.save_data = self.save_manager.add_unlocked_animal(self.save_data, animal_id)
@@ -2402,7 +2512,10 @@ class Game:
         biome_data = load_biomes().get(self.current_biome, {})
         level_range = biome_data.get("enemy_level_range", [1, 3])
 
-        all_animal_ids = list(load_animals().keys())
+        all_animal_ids = [
+            aid for aid, data in load_animals().items()
+            if not data.get("legendary")
+        ]
         unlocked = set(self.save_data.get("unlocked_animals", []))
         party_ids = set(a.animal_id for a in self.party)
 
@@ -2411,7 +2524,9 @@ class Game:
         if undiscovered:
             self.encounter_animal_id = random.choice(undiscovered)
         else:
-            candidates = [aid for aid in unlocked if aid not in party_ids]
+            candidates = [aid for aid in unlocked
+                          if aid not in party_ids
+                          and not load_animals().get(aid, {}).get("legendary")]
             if not candidates:
                 self.encounter_animal_id = None
                 self.encounter_animal_level = 1
@@ -2664,6 +2779,7 @@ class Game:
             GameState.CAMP: self._render_camp,
             GameState.LEVEL_UP: self._render_level_up,
             GameState.RESCUE_ANIMAL: self._render_rescue,
+            GameState.LEGENDARY_UNLOCK: self._render_legendary_unlock,
             GameState.GAME_OVER: self._render_game_over,
             GameState.VICTORY: self._render_victory,
             GameState.PAUSE: self._render_pause,
@@ -3106,6 +3222,81 @@ class Game:
 
         draw_text_centered(self.screen, "Clique para continuar",
                            SCREEN_WIDTH // 2, 550, 24, SERTAO_CREAM)
+
+    def _render_legendary_unlock(self):
+        self.assets.draw_background(self.screen, "level_up")
+
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        self.screen.blit(overlay, (0, 0))
+
+        panel_w, panel_h = 660, 560
+        panel = pygame.Rect((SCREEN_WIDTH - panel_w) // 2,
+                            (SCREEN_HEIGHT - panel_h) // 2, panel_w, panel_h)
+        _draw_panel(self.screen, panel, (50, 38, 12), SERTAO_GOLD,
+                    border_width=3)
+
+        draw_text_centered(self.screen, "ANIMAL LENDARIO DESBLOQUEADO!",
+                           panel.centerx, panel.y + 32, 36, SERTAO_GOLD)
+        draw_text_centered(self.screen, "O guardiao foi derrotado",
+                           panel.centerx, panel.y + 68, 20, SERTAO_CREAM)
+
+        animal_id = self.pending_legendary_animal
+        animals = load_animals()
+        animal = animals.get(animal_id, {}) if animal_id else {}
+        name = animal.get("name", "Desconhecido")
+        role = animal.get("role", "")
+        rarity = animal.get("rarity", "Lendario")
+        desc = animal.get("description", "")
+        stats = animal.get("base_stats", {})
+
+        sprite_center = (panel.centerx, panel.y + 140)
+        sprite = None
+        if animal_id and self.assets:
+            sprite = self.assets.get_animal_sprite(
+                animal_id, max_width=120, max_height=120)
+        if sprite:
+            self.screen.blit(sprite, sprite.get_rect(center=sprite_center))
+        else:
+            emoji = ANIMAL_EMOJIS.get(animal_id, "?")
+            draw_text_centered(self.screen, emoji, sprite_center[0],
+                               sprite_center[1], 64, SERTAO_CREAM)
+
+        draw_text_centered(self.screen, name, panel.centerx, panel.y + 222, 36,
+                           SERTAO_GOLD)
+        draw_text_centered(self.screen, f"{role}  -  {rarity}",
+                           panel.centerx, panel.y + 258, 20, SERTAO_LIGHT)
+
+        pygame.draw.line(self.screen, SERTAO_GOLD,
+                         (panel.x + 50, panel.y + 285),
+                         (panel.right - 50, panel.y + 285), 1)
+
+        stat_labels = (
+            ("hp", "HP"),
+            ("attack", "Ataque"),
+            ("defense", "Defesa"),
+            ("speed", "Velocidade"),
+            ("crit_chance", "Critico"),
+            ("dodge", "Esquiva"),
+        )
+        col_left = panel.centerx - 150
+        col_right = panel.centerx + 150
+        for i, (key, label) in enumerate(stat_labels):
+            col = col_left if i % 2 == 0 else col_right
+            row = i // 2
+            value = stats.get(key, 0)
+            suffix = "%" if key in ("crit_chance", "dodge") else ""
+            draw_text_centered(self.screen, f"{label}: {value}{suffix}",
+                               col, panel.y + 315 + row * 28, 19,
+                               SERTAO_CREAM)
+
+        desc_rect = pygame.Rect(panel.x + 55, panel.y + 405,
+                                panel.w - 110, 90)
+        draw_multiline_centered(self.screen, desc, desc_rect, 17,
+                                SERTAO_CREAM, max_lines=3)
+
+        draw_text_centered(self.screen, "Clique ou pressione Enter para continuar",
+                           panel.centerx, panel.bottom - 32, 20, SERTAO_GREEN)
 
     def _render_game_over(self):
         if self.game_over_screen is None:

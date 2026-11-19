@@ -1,15 +1,16 @@
 from collections import deque
 from src.state import NodeType
-from config import ELITE_SPAWN_CHANCE, ELITE_MIN_FLOOR
+from config import ELITE_SPAWN_CHANCE, ELITE_MIN_FLOOR, LEGENDARY_MIN_FLOOR
 import random
 
 
 class MapNode:
-    def __init__(self, node_id, floor, position, node_type):
+    def __init__(self, node_id, floor, position, node_type, legendary_id=None):
         self.node_id = node_id
         self.floor = floor
         self.position = position
         self.node_type = node_type
+        self.legendary_id = legendary_id
         self.connections = []
         self.parents = []
         self.visited = False
@@ -22,6 +23,7 @@ class MapNode:
             "floor": self.floor,
             "position": self.position,
             "node_type": self.node_type.value,
+            "legendary_id": self.legendary_id,
             "connections": self.connections,
             "parents": self.parents,
             "visited": self.visited,
@@ -32,7 +34,8 @@ class MapNode:
     @classmethod
     def from_dict(cls, data):
         node = cls(data["node_id"], data["floor"], data["position"],
-                    NodeType(data["node_type"]))
+                    NodeType(data["node_type"]),
+                    data.get("legendary_id"))
         node.connections = data["connections"]
         node.parents = data.get("parents", [])
         node.visited = data["visited"]
@@ -94,7 +97,7 @@ class MapGenerator:
         self.nodes = {}
         self.current_node_id = None
 
-    def generate(self):
+    def generate(self, locked_legendaries=None):
         self.nodes = {}
         self.current_node_id = None
         template = _FIXED_MAP_TEMPLATE
@@ -117,6 +120,7 @@ class MapGenerator:
         self._recompute_available()
         self._insert_elite_nodes()
         self._insert_rescue_nodes()
+        self._insert_legendary_nodes(locked_legendaries or [])
         return self.nodes
 
     def _recompute_available(self):
@@ -173,6 +177,41 @@ class MapGenerator:
         to_replace = random.sample(eligible, count)
         for node in to_replace:
             node.node_type = NodeType.RESCUE_ANIMAL
+
+    def _insert_legendary_nodes(self, locked_legendaries):
+        """Place at most one legendary node on the map.
+
+        A legendary node always belongs to a still-locked legendary animal.
+        The current biome is preferred, but any locked legendary can appear so
+        the player is never blocked by the biome order.
+        """
+        locked = [aid for aid in locked_legendaries if aid]
+        if not locked:
+            return
+
+        from config import load_animals
+        animals = load_animals()
+        preferred = [
+            aid for aid in locked
+            if animals.get(aid, {}).get("legendary_biome") == self.biome_id
+        ]
+        chosen = random.choice(preferred or locked)
+
+        eligible = [n for n in self.nodes.values()
+                    if n.node_type in (NodeType.COMBAT, NodeType.EVENT)
+                    and n.floor >= LEGENDARY_MIN_FLOOR]
+        if not eligible:
+            eligible = [n for n in self.nodes.values()
+                        if n.node_type not in (
+                            NodeType.BOSS, NodeType.ELITE,
+                            NodeType.RESCUE_ANIMAL, NodeType.LEGENDARY)
+                        and n.floor >= max(2, LEGENDARY_MIN_FLOOR - 2)]
+        if not eligible:
+            return
+
+        node = random.choice(eligible)
+        node.node_type = NodeType.LEGENDARY
+        node.legendary_id = chosen
 
     def _get_reachable_from(self, start_id):
         reachable = set()

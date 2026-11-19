@@ -95,6 +95,8 @@ class SaveManager:
                 "levels_gained": 0,
                 "animals_rescued": 0,
                 "bosses_defeated": 0,
+                "legendary_bosses_defeated": 0,
+                "legendary_animals_unlocked": 0,
             },
             "settings": deepcopy(DEFAULT_GLOBAL_SETTINGS),
             "run": None,
@@ -120,6 +122,9 @@ class SaveManager:
                 data["settings"].setdefault(key, deepcopy(value))
         if "statistics" not in data or not isinstance(data["statistics"], dict):
             data["statistics"] = defaults["statistics"].copy()
+        else:
+            for stat_key, stat_value in defaults["statistics"].items():
+                data["statistics"].setdefault(stat_key, stat_value)
         if "animal_data" not in data or not isinstance(data["animal_data"], dict):
             data["animal_data"] = {}
         if "permanent_upgrades" not in data or not isinstance(

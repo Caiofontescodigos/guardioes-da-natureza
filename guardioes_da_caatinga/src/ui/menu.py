@@ -20,6 +20,9 @@ ANIMAL_EMOJIS = {
     "tamandua_bandeira": "\U0001f41c",
     "capivara": "\U0001f9ab",
     "onca_pintada": "\U0001f406",
+    "harpia": "\U0001f985",
+    "pirarucu": "\U0001f41f",
+    "onca_do_pantanal": "\U0001f406",
 }
 
 ENEMY_EMOJIS = {
@@ -265,6 +268,9 @@ class AnimalSelectScreen:
         "tamandua_bandeira",
         "capivara",
         "onca_pintada",
+        "harpia",
+        "pirarucu",
+        "onca_do_pantanal",
     )
 
     # Card geometry measured in the original 1600x900 artwork.
@@ -274,10 +280,33 @@ class AnimalSelectScreen:
     CARD_BOTTOM = 635
     SPRITE_CENTER_Y = 426
     SPRITE_BOX = 190
+    PAGE_SIZE = len(CARD_CENTERS_X)
+    PAGE_BUTTON_SOURCE_RECT = (1190, 150, 390, 64)
 
     TEAM_SLOT_CENTERS = ((560, 735), (808, 735), (1056, 735))
     CLEAR_SOURCE_RECT = (58, 720, 312, 116)
     CONFIRM_SOURCE_RECT = (1245, 720, 318, 116)
+
+    # Bottom bar cut line in SeleçãoEquipe.png (1600x900) separating the 6
+    # animal cards from the illustrated Limpar Equipe / team / Confirmar bar.
+    BOTTOM_BAR_SOURCE_Y = 662
+
+    # Legendary page artwork.  The frame sheet is shown at its native aspect
+    # ratio and the animal illustrations are composited only inside the black
+    # frame openings.
+    LEGENDARY_PAGE = 1
+    LEGENDARY_FRAME_SOURCE_SIZE = (1536, 1024)
+    LEGENDARY_FRAME_ORDER = ("pirarucu", "harpia", "onca_do_pantanal")
+    LEGENDARY_HOLE_BOUNDS = {
+        "pirarucu": (103, 403, 400, 773),
+        "harpia": (600, 403, 936, 773),
+        "onca_do_pantanal": (1131, 403, 1453, 776),
+    }
+    LEGENDARY_PANEL_BOUNDS = {
+        "pirarucu": (20, 230, 490, 960),
+        "harpia": (500, 210, 1035, 970),
+        "onca_do_pantanal": (1045, 230, 1530, 960),
+    }
 
     def __init__(self, unlocked_animals=None, assets=None, save_data=None,
                  max_selection=3, reteam_mode=False):
@@ -293,10 +322,13 @@ class AnimalSelectScreen:
         self.hover_index = -1
         self.hover_clear = False
         self.hover_confirm = False
+        self.hover_page = False
+        self.page = 0
         self.message = ""
         self.message_error = False
         self.layout = UILayout()
         self._build_ui()
+        self._build_legendary_layout()
 
     # ------------------------------------------------------------- layout
 
@@ -319,12 +351,20 @@ class AnimalSelectScreen:
         animal_data = self.save_data.get("animal_data", {}) or {}
         self.cards = []
         self.card_by_id = {}
+        self.page_count = max(
+            1, (len(self.ANIMAL_ORDER) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
 
         for index, aid in enumerate(self.ANIMAL_ORDER):
             animal = self.animals.get(aid)
             if animal is None:
                 continue
-            center_x = self.CARD_CENTERS_X[index]
+            page = index // self.PAGE_SIZE
+            page_items = self.ANIMAL_ORDER[
+                page * self.PAGE_SIZE:(page + 1) * self.PAGE_SIZE]
+            # Center a short last page (the legendary page) on the artwork.
+            slot_offset = (self.PAGE_SIZE - len(page_items)) // 2
+            slot = slot_offset + (index % self.PAGE_SIZE)
+            center_x = self.CARD_CENTERS_X[slot]
             card_rect = self._source_rect(
                 center_x - self.CARD_HALF_WIDTH, self.CARD_TOP,
                 self.CARD_HALF_WIDTH * 2,
@@ -346,6 +386,7 @@ class AnimalSelectScreen:
                 "animal": animal,
                 "rect": card_rect,
                 "sprite_rect": sprite_rect,
+                "page": page,
                 "unlocked": aid in self.unlocked_animals,
                 "level": info.get("level", 1) or 1,
                 "evolution_stage": info.get("evolution_stage", 0) or 0,
@@ -356,7 +397,79 @@ class AnimalSelectScreen:
 
         self.clear_rect = self._source_rect(*self.CLEAR_SOURCE_RECT)
         self.confirm_rect = self._source_rect(*self.CONFIRM_SOURCE_RECT)
+        self.page_button = self._source_rect(*self.PAGE_BUTTON_SOURCE_RECT)
         self.back_button = pygame.Rect(12, 12, 44, 40)
+
+    def _build_legendary_layout(self):
+        """Lay out the legendary frame sheet above the shared bottom bar.
+
+        The frame artwork is scaled proportionally to fit above the illustrated
+        bottom bar reused from ``SeleçãoEquipe.png`` (Limpar Equipe, selected
+        team row and Confirmar) so none of the frames or icons overlap.  If the
+        artwork is unavailable the regular card layout stays in use.
+        """
+        src_w, src_h = self.LEGENDARY_FRAME_SOURCE_SIZE
+        self.bottom_bar_y = int(round(
+            self.BOTTOM_BAR_SOURCE_Y * SCREEN_HEIGHT / self.SOURCE_HEIGHT))
+        frame_top = 4
+        max_frame_h = self.bottom_bar_y - frame_top
+        scale = min(SCREEN_WIDTH / src_w, max_frame_h / src_h)
+        frame_w = max(1, int(round(src_w * scale)))
+        frame_h = max(1, int(round(src_h * scale)))
+        frame_x = (SCREEN_WIDTH - frame_w) // 2
+        self.legendary_frame_rect = pygame.Rect(
+            frame_x, frame_top, frame_w, frame_h)
+        self.legendary_frame_scale = scale
+        self.legendary_holes = {}
+        self.legendary_panels = {}
+        self._legendary_mask_cache = {}
+
+        if not self._use_legendary_frame():
+            return
+
+        for aid in self.LEGENDARY_FRAME_ORDER:
+            hole_bounds = self.LEGENDARY_HOLE_BOUNDS.get(aid)
+            panel_bounds = self.LEGENDARY_PANEL_BOUNDS.get(aid)
+            if not hole_bounds or not panel_bounds:
+                continue
+            hole_rect = self._frame_source_rect(hole_bounds)
+            panel_rect = self._frame_source_rect(panel_bounds)
+            self.legendary_holes[aid] = hole_rect
+            self.legendary_panels[aid] = panel_rect
+            card = self.card_by_id.get(aid)
+            if card is not None:
+                card["rect"] = panel_rect
+                card["sprite_rect"] = hole_rect
+
+        # Top navigation sits in the transparent top-left corner; the bottom
+        # Clear / Team / Confirm bar is shared verbatim with page 0.
+        self.legendary_page_button = pygame.Rect(64, 12, 148, 40)
+        self.legendary_clear_rect = self.clear_rect
+        self.legendary_confirm_rect = self.confirm_rect
+        self.legendary_message_rect = pygame.Rect(
+            CENTER_X - 280, self.bottom_bar_y - 26, 560, 30)
+
+    def _frame_source_rect(self, bounds):
+        """Convert a (left, top, right, bottom) frame-space rect to screen."""
+        left, top, right, bottom = bounds
+        scale = self.legendary_frame_scale
+        return pygame.Rect(
+            int(round(self.legendary_frame_rect.x + left * scale)),
+            int(round(self.legendary_frame_rect.y + top * scale)),
+            max(1, int(round((right - left) * scale))),
+            max(1, int(round((bottom - top) * scale))),
+        )
+
+    def _use_legendary_frame(self):
+        return bool(self.assets and getattr(
+            self.assets, "has_legendary_frame", lambda: False)())
+
+    def _control_rects(self):
+        if self.page == self.LEGENDARY_PAGE and self._use_legendary_frame():
+            return (self.legendary_page_button, self.legendary_clear_rect,
+                    self.legendary_confirm_rect, self.back_button)
+        return (self.page_button, self.clear_rect,
+                self.confirm_rect, self.back_button)
 
     def set_selection(self, ids):
         """Preselect animals coming from the loaded save."""
@@ -373,20 +486,36 @@ class AnimalSelectScreen:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             return "back"
 
+        page_btn, clear_rect, confirm_rect, back_btn = self._control_rects()
+
         if event.type == pygame.MOUSEMOTION:
             self.hover_index = -1
             for i, card in enumerate(self.cards):
-                if card["rect"].collidepoint(event.pos) and card["unlocked"]:
+                if (card["page"] == self.page
+                        and card["rect"].collidepoint(event.pos)
+                        and card["unlocked"]):
                     self.hover_index = i
                     break
-            self.hover_clear = self.clear_rect.collidepoint(event.pos)
-            self.hover_confirm = self.confirm_rect.collidepoint(event.pos)
+            self.hover_clear = clear_rect.collidepoint(event.pos)
+            self.hover_confirm = confirm_rect.collidepoint(event.pos)
+            self.hover_page = page_btn.collidepoint(event.pos)
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.back_button.collidepoint(event.pos):
+            if back_btn.collidepoint(event.pos):
                 return "back"
 
+            if page_btn.collidepoint(event.pos):
+                self.page = (self.page + 1) % self.page_count
+                self.hover_index = -1
+                self.hover_clear = False
+                self.hover_confirm = False
+                self.hover_page = False
+                self.message = ""
+                return None
+
             for card in self.cards:
+                if card["page"] != self.page:
+                    continue
                 if not card["rect"].collidepoint(event.pos):
                     continue
                 if not card["unlocked"]:
@@ -407,12 +536,12 @@ class AnimalSelectScreen:
                     return ("toggle", aid)
                 return ("toggle", aid)
 
-            if self.clear_rect.collidepoint(event.pos):
+            if clear_rect.collidepoint(event.pos):
                 self.selected = []
                 self.message = ""
                 return ("clear",)
 
-            if self.confirm_rect.collidepoint(event.pos):
+            if confirm_rect.collidepoint(event.pos):
                 if not self.selected:
                     self.message = "Escolha pelo menos 1 animal para confirmar."
                     self.message_error = True
@@ -424,6 +553,10 @@ class AnimalSelectScreen:
     # ---------------------------------------------------------------- draw
 
     def draw(self, surface):
+        if self.page == self.LEGENDARY_PAGE and self._use_legendary_frame():
+            self._draw_legendary_page(surface)
+            return
+
         if self.assets:
             # The supplied PNG has transparent cut-outs around the rounded UI,
             # so it is composited over the regular menu scenery.
@@ -433,6 +566,8 @@ class AnimalSelectScreen:
             surface.fill(SERTAO_DARK)
 
         for i, card in enumerate(self.cards):
+            if card["page"] != self.page:
+                continue
             self._draw_card(surface, card, i)
 
         self._draw_selected_team(surface)
@@ -451,8 +586,207 @@ class AnimalSelectScreen:
             surface, self.confirm_rect, self.hover_confirm,
             enabled=bool(self.selected))
 
+        page_label = ("LENDARIOS >" if self.page == 0
+                      else "< ANIMAIS")
+        draw_sertao_button(
+            surface, self.page_button, page_label,
+            is_hovered=self.hover_page,
+            font_size=self._source_size(18),
+            color=(80, 60, 25) if self.page == 0 else (45, 60, 35))
+
         bh = self.back_button.collidepoint(get_mouse_pos())
         draw_sertao_button(surface, self.back_button, "<", bh, font_size=20)
+
+    def _get_legendary_hole_mask(self, animal_id, frame_surface):
+        """Return (mask_surface, outline_points) for a legendary frame opening."""
+        cached = self._legendary_mask_cache.get(animal_id)
+        if cached is not None:
+            return cached
+
+        hole_rect = self.legendary_holes.get(animal_id)
+        if hole_rect is None or frame_surface is None:
+            return (None, [])
+
+        local_rect = hole_rect.move(
+            -self.legendary_frame_rect.x, -self.legendary_frame_rect.y
+        ).clip(frame_surface.get_rect())
+        if local_rect.w <= 0 or local_rect.h <= 0:
+            return (None, [])
+
+        sub = frame_surface.subsurface(local_rect)
+        dark = pygame.mask.from_threshold(
+            sub, (0, 0, 0, 255), (26, 26, 26, 50))
+        cx, cy = local_rect.w // 2, local_rect.h // 2
+        hole_mask = None
+        for comp in dark.connected_components():
+            if comp.get_at((cx, cy)):
+                hole_mask = comp
+                break
+        if hole_mask is None:
+            hole_mask = dark
+
+        mask_surface = hole_mask.to_surface(
+            setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+        mask_surface = mask_surface.convert_alpha()
+        outline_points = [
+            (hole_rect.x + px, hole_rect.y + py)
+            for px, py in hole_mask.outline(2)
+        ]
+        result = (mask_surface, outline_points)
+        self._legendary_mask_cache[animal_id] = result
+        return result
+
+    def _draw_legendary_page(self, surface):
+        if self.assets:
+            self.assets.draw_background(surface, "main_menu")
+            frame = self.assets.get_background(
+                "legendary_select",
+                self.legendary_frame_rect.w,
+                self.legendary_frame_rect.h)
+            if frame is not None:
+                surface.blit(frame, self.legendary_frame_rect.topleft)
+        else:
+            surface.fill(SERTAO_DARK)
+            frame = None
+
+        for i, card in enumerate(self.cards):
+            if card["page"] != self.page:
+                continue
+            self._draw_legendary_card(surface, card, i, frame)
+
+        # Reuse the illustrated bottom bar (Limpar Equipe, team panel and
+        # Confirmar) directly from SeleçãoEquipe.png for full visual parity.
+        bottom_art = (self.assets.get_background(
+            "animal_select", surface.get_width(), surface.get_height())
+            if self.assets else None)
+        if bottom_art is not None:
+            bar_rect = pygame.Rect(
+                0, self.bottom_bar_y,
+                surface.get_width(),
+                surface.get_height() - self.bottom_bar_y)
+            surface.blit(bottom_art, (0, self.bottom_bar_y), area=bar_rect)
+            self._draw_selected_team(surface)
+            self._draw_hotspot(
+                surface, self.clear_rect, self.hover_clear, enabled=True)
+            self._draw_hotspot(
+                surface, self.confirm_rect, self.hover_confirm,
+                enabled=bool(self.selected))
+        else:
+            self._draw_selected_team(surface)
+            draw_sertao_button(
+                surface, self.clear_rect, "LIMPAR EQUIPE",
+                is_hovered=self.hover_clear, font_size=20,
+                color=(90, 48, 32))
+            draw_sertao_button(
+                surface, self.confirm_rect, "CONFIRMAR",
+                is_hovered=self.hover_confirm, enabled=bool(self.selected),
+                font_size=20, color=(45, 95, 45))
+
+        if self.message:
+            r = self.legendary_message_rect
+            draw_sertao_panel(surface, r.x, r.y, r.w, r.h, alpha=225)
+            draw_text(
+                surface, self.message, r.center,
+                font_size=16,
+                color=(255, 115, 95) if self.message_error else SERTAO_GOLD,
+                center=True)
+
+        draw_sertao_button(
+            surface, self.legendary_page_button, "< ANIMAIS",
+            is_hovered=self.hover_page,
+            font_size=17,
+            color=(45, 60, 35))
+
+        bh = self.back_button.collidepoint(get_mouse_pos())
+        draw_sertao_button(surface, self.back_button, "<", bh, font_size=20)
+
+    def _draw_legendary_card(self, surface, card, index, frame_surface):
+        aid = card["id"]
+        hole_rect = self.legendary_holes.get(aid, card["sprite_rect"])
+        selected = aid in self.selected
+        hovered = self.hover_index == index
+
+        portrait = pygame.Surface(hole_rect.size, pygame.SRCALPHA)
+        portrait.fill((14, 10, 8, 255))
+
+        if card["unlocked"]:
+            art = (self.assets.get_legendary_art(aid, hole_rect.w, hole_rect.h)
+                   if self.assets else None)
+            if art is not None:
+                portrait.blit(art, (0, 0))
+            else:
+                sprite = (self.assets.get_animal_sprite(
+                    aid, evolution_stage=card["evolution_stage"],
+                    max_width=hole_rect.w - 16, max_height=hole_rect.h - 16)
+                    if self.assets else None)
+                if sprite is not None:
+                    portrait.blit(
+                        sprite,
+                        sprite.get_rect(
+                            center=(hole_rect.w // 2, hole_rect.h // 2)))
+                else:
+                    draw_text(
+                        portrait, ANIMAL_EMOJIS.get(aid, "?"),
+                        (hole_rect.w // 2, hole_rect.h // 2),
+                        font_size=48, color=SERTAO_CREAM, center=True)
+
+            if hovered and not selected:
+                portrait.fill(
+                    (28, 22, 10, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+            if card.get("fallen"):
+                shade = pygame.Surface(hole_rect.size, pygame.SRCALPHA)
+                shade.fill((20, 10, 8, 135))
+                portrait.blit(shade, (0, 0))
+                tag = pygame.Rect(0, 0, 96, 26)
+                tag.midbottom = (hole_rect.w // 2, hole_rect.h - 24)
+                pygame.draw.rect(portrait, SERTAO_RED, tag, border_radius=6)
+                draw_text(
+                    portrait, "CAIDO", tag.center,
+                    font_size=15, color=SERTAO_CREAM, center=True)
+        else:
+            locked_img = (self.assets.get_locked_animal_image(
+                int(hole_rect.w * 0.65), int(hole_rect.h * 0.65))
+                if self.assets else None)
+            if locked_img is not None:
+                portrait.blit(
+                    locked_img,
+                    locked_img.get_rect(
+                        center=(hole_rect.w // 2, hole_rect.h // 2)))
+            else:
+                draw_text(
+                    portrait, "?", (hole_rect.w // 2, hole_rect.h // 2),
+                    font_size=56, color=SERTAO_CREAM, center=True)
+
+        mask_surface, outline_points = self._get_legendary_hole_mask(
+            aid, frame_surface)
+        if mask_surface is not None and mask_surface.get_size() == portrait.get_size():
+            portrait.blit(
+                mask_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        surface.blit(portrait, hole_rect.topleft)
+
+        if card["unlocked"] and selected:
+            if len(outline_points) >= 3:
+                pygame.draw.lines(
+                    surface, SERTAO_GOLD, True, outline_points, 4)
+            else:
+                pygame.draw.rect(
+                    surface, SERTAO_GOLD, hole_rect, 3, border_radius=12)
+            badge = (hole_rect.right - 22, hole_rect.top + 26)
+            pygame.draw.circle(surface, SERTAO_DARK, badge, 16)
+            pygame.draw.circle(surface, SERTAO_GOLD, badge, 14)
+            bx, by = badge
+            pygame.draw.lines(
+                surface, SERTAO_DARK, False,
+                [(bx - 6, by), (bx - 1, by + 5), (bx + 7, by - 5)], 3)
+        elif card["unlocked"] and hovered:
+            if len(outline_points) >= 3:
+                pygame.draw.lines(
+                    surface, SERTAO_LIGHT, True, outline_points, 3)
+            else:
+                pygame.draw.rect(
+                    surface, SERTAO_LIGHT, hole_rect, 2, border_radius=12)
 
     def _draw_card(self, surface, card, index):
         sprite_rect = card["sprite_rect"]

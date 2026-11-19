@@ -87,6 +87,42 @@ SPECIFIC_UPGRADES = {
             "execute_bonus": 3,
         },
     },
+    "harpia": {
+        "id": "asas_tempestuosas",
+        "name": "Asas Tempestuosas",
+        "icon": "\U0001f985",
+        "description": "As asas da harpia cortam o ar como lâminas, "
+                       "aumentando velocidade e precisão dos golpes críticos.",
+        "bonuses": {
+            "permanent_speed": 5,
+            "permanent_crit": 8,
+            "crit_damage_boost": 20,
+        },
+    },
+    "pirarucu": {
+        "id": "couraca_do_rio",
+        "name": "Couraça do Rio",
+        "icon": "\U0001f41f",
+        "description": "Escamas ancestrais formam uma couraça viva, "
+                       "aumentando vida, defesa e resistência ao dano.",
+        "bonuses": {
+            "permanent_max_hp": 25,
+            "permanent_defense": 6,
+            "damage_reduction": 4,
+        },
+    },
+    "onca_do_pantanal": {
+        "id": "predador_do_pantano",
+        "name": "Predador do Pântano",
+        "icon": "\U0001f406",
+        "description": "O instinto da onça lendária transforma cada bote "
+                       "em uma sentença de morte.",
+        "bonuses": {
+            "permanent_attack": 8,
+            "crit_damage_boost": 25,
+            "execute_bonus": 4,
+        },
+    },
 }
 
 

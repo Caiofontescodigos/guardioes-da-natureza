@@ -27,6 +27,7 @@ class GameState(Enum):
     ACHIEVEMENTS = auto()
     INVENTORY = auto()
     MUSIC_BOX = auto()
+    LEGENDARY_UNLOCK = auto()
 
 class NodeType(Enum):
     COMBAT = "combat"
@@ -36,6 +37,7 @@ class NodeType(Enum):
     SHOP = "shop"
     BOSS = "boss"
     RESCUE_ANIMAL = "rescue_animal"
+    LEGENDARY = "legendary"
 
 class BuffType(Enum):
     ATTACK_UP = auto()

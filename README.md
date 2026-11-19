@@ -55,11 +55,14 @@ são mais expostos pelo menu da partida.
 - **Tela de Game Over** em painel compacto sobre o fundo da região onde a
   equipe foi derrotada, com estatísticas do save, equipe, tentativa rápida no
   primeiro mapa e retorno ao menu do save.
-- **6 animais jogáveis**, cada um com uma função de equipe:
+- **9 animais jogáveis**, cada um com uma função de equipe:
   - Tatu-bola (Tanque), Lobo-guará (Assassino), Arara-azul (Ataque a Distância),
     Tamanduá-bandeira (Controle), Capivara (Suporte) e Onça-pintada (DPS).
-- **5 biomas** com dificuldade crescente: Caatinga, Cerrado, Pantanal,
-  Mata Atlântica e Amazônia.
+  - **3 animais lendários** desbloqueados apenas ao derrotar o chefe guardião de
+    um nó lendário no mapa: Harpia (Assassino), Pirarucu (Tanque) e
+    Onça do Pantanal (DPS). Eles aparecem na segunda página da seleção de equipe.
+- **6 biomas** com dificuldade crescente: Caatinga, Cerrado, Pantanal,
+  Mata Atlântica, Pampa e Amazônia.
 - **Mapas gerados proceduralmente** por andar, com nós de combate e **nós ELITE**
   (inimigos mais fortes com recompensas maiores).
 - **Inimigos, elites e chefes** regionais com níveis escalonados.
@@ -98,6 +101,10 @@ são mais expostos pelo menu da partida.
      - **Capivara — Vitalidade**: +HP e regeneração por turno.
      - **Onça-pintada — Instinto Predador**: +ATK, dano crítico ampliado e
        execução de inimigos com pouca vida.
+     - **Harpia — Asas Tempestuosas**: +Vel, +crítico e dano crítico ampliado.
+     - **Pirarucu — Couraça do Rio**: +HP, +Def e redução de dano.
+     - **Onça do Pantanal — Predador do Pântano**: +ATK, dano crítico ampliado
+       e execução de inimigos com pouca vida.
 - **Progresso permanente no Save**: evolução, bônus de status e melhoria
   específica **nunca** são perdidos ao trocar a equipe, fechar/reabrir o jogo ou
   perder uma run na jogada. Só desaparecem se o save for apagado.

@@ -102,7 +102,8 @@ NODE_COLORS = {
     "camp": (80, 180, 80),
     "shop": (180, 130, 200),
     "boss": (200, 50, 50),
-    "rescue_animal": (100, 200, 160)
+    "rescue_animal": (100, 200, 160),
+    "legendary": (255, 215, 0)
 }
 
 # Elite node configuration
@@ -114,6 +115,10 @@ ELITE_XP_MULTIPLIER = 3.0
 ELITE_GOLD_MULTIPLIER = 2.5
 ELITE_SPAWN_CHANCE = 0.35
 ELITE_MIN_FLOOR = 2
+
+# Legendary node configuration
+LEGENDARY_MIN_FLOOR = 4
+LEGENDARY_LEVEL_BONUS = 4
 
 def load_json(filename):
     filepath = os.path.join(DATA_DIR, filename)

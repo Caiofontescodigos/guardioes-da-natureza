@@ -107,6 +107,66 @@
             "unlock_biome": "amazonia",
             "rescue_description": "Encontre na Amazônia, onde criaturas de fogo mais perigosas residem.",
             "rarity": "Lendário"
+        },
+        "harpia": {
+            "id": "harpia",
+            "name": "Harpia",
+            "role": "Assassino",
+            "description": "A senhora dos céus, uma águia gigante que desce como uma tempestade sobre suas presas.",
+            "base_stats": {
+                "hp": 72,
+                "attack": 20,
+                "defense": 8,
+                "speed": 16,
+                "crit_chance": 22,
+                "dodge": 18
+            },
+            "skills": ["voo_rasante", "garras_de_aco", "bencao_dos_ceus"],
+            "unlock_biome": "mata_atlantica",
+            "legendary": true,
+            "legendary_biome": "mata_atlantica",
+            "rescue_description": "Encontre um nó lendário no mapa e derrote o chefe guardião para libertar a Harpia.",
+            "rarity": "Lendário"
+        },
+        "pirarucu": {
+            "id": "pirarucu",
+            "name": "Pirarucu",
+            "role": "Tanque",
+            "description": "O gigante das águas amazônicas, coberto por escamas tão duras quanto armaduras.",
+            "base_stats": {
+                "hp": 110,
+                "attack": 18,
+                "defense": 17,
+                "speed": 8,
+                "crit_chance": 10,
+                "dodge": 6
+            },
+            "skills": ["cauda_de_ferro", "bocada_abissal", "escamas_ancestrais"],
+            "unlock_biome": "amazonia",
+            "legendary": true,
+            "legendary_biome": "amazonia",
+            "rescue_description": "Encontre um nó lendário no mapa e derrote o chefe guardião para libertar o Pirarucu.",
+            "rarity": "Lendário"
+        },
+        "onca_do_pantanal": {
+            "id": "onca_do_pantanal",
+            "name": "Onça do Pantanal",
+            "role": "DPS",
+            "description": "Uma onça-vermelha lendária que domina as águas e as matas do Pantanal.",
+            "base_stats": {
+                "hp": 86,
+                "attack": 24,
+                "defense": 10,
+                "speed": 14,
+                "crit_chance": 25,
+                "dodge": 15
+            },
+            "skills": ["bote_do_pantano", "rugido_do_pantano", "instinto_selvagem"],
+            "unlock_biome": "pantanal",
+            "legendary": true,
+            "legendary_biome": "pantanal",
+            "rescue_description": "Encontre um nó lendário no mapa e derrote o chefe guardião para libertar a Onça do Pantanal.",
+            "rarity": "Lendário"
         }
     }
 }

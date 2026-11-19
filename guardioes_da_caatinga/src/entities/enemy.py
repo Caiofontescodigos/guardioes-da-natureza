@@ -99,3 +99,18 @@ def create_boss(biome_id, level):
     bosses = biomes[biome_id]["bosses"]
     boss_id = random.choice(bosses)
     return create_enemy(boss_id, level)
+
+
+# Each legendary animal is guarded by one of the existing bosses.  Reusing the
+# boss roster keeps the bestiary and its artwork complete while giving every
+# legendary node a themed guardian.
+LEGENDARY_GUARDIANS = {
+    "harpia": "vendaval_de_fogo",
+    "pirarucu": "lobo_alfa_de_fogo",
+    "onca_do_pantanal": "lobo_alfa_de_fogo",
+}
+
+
+def create_legendary_boss(legendary_id, level):
+    boss_id = LEGENDARY_GUARDIANS.get(legendary_id, "lobo_alfa_de_fogo")
+    return create_enemy(boss_id, level)
